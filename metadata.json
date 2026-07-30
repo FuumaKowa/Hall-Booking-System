@@ -1,0 +1,6 @@
+{
+  "name": "Nilai Harta Consultant Sdn Bhd",
+  "description": "Event hall venue management and real-time booking portal by Nilai Harta Consultant Sdn Bhd, featuring luxury halls, availability calendars, and instant manager notifications.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

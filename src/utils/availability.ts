@@ -1,0 +1,174 @@
+import { BookingRequest, HallId, TimeSlot } from '../types';
+
+export interface SlotRange {
+  startMin: number; // Minutes from 00:00
+  endMin: number;
+}
+
+export const STANDARD_OPERATING_HOURS = {
+  startHour: 9,      // 9:00 AM
+  endHour: 18,       // 6:00 PM
+  startTimeStr: '09:00',
+  endTimeStr: '18:00',
+  label: '09:00 AM - 06:00 PM'
+};
+
+export const TIME_SLOT_DEFAULTS: Record<TimeSlot, { startMin: number; endMin: number; label: string; timeRangeStr: string; defaultStart: string; defaultDuration: number }> = {
+  morning: { startMin: 9 * 60, endMin: 13 * 60, label: 'Morning Package (Standard)', timeRangeStr: '09:00 - 13:00', defaultStart: '09:00', defaultDuration: 4 },
+  afternoon: { startMin: 13 * 60, endMin: 18 * 60, label: 'Afternoon Package (Standard)', timeRangeStr: '13:00 - 18:00', defaultStart: '13:00', defaultDuration: 5 },
+  evening: { startMin: 18 * 60, endMin: 22 * 60, label: 'Evening Package (Overtime)', timeRangeStr: '18:00 - 22:00', defaultStart: '18:00', defaultDuration: 4 },
+  fullday: { startMin: 9 * 60, endMin: 18 * 60, label: 'Full-Day Standard (09:00 - 18:00)', timeRangeStr: '09:00 - 18:00', defaultStart: '09:00', defaultDuration: 9 },
+};
+
+export interface HoursBreakdown {
+  standardHours: number;
+  overtimeHours: number;
+  totalHours: number;
+  isOvertimeApplied: boolean;
+}
+
+/**
+ * Calculates standard hours (9am - 6pm) vs overtime hours (outside 9am - 6pm)
+ */
+export function calculateBookingHours(startTime: string, durationHours: number): HoursBreakdown {
+  const parts = (startTime || '09:00').split(':').map(Number);
+  const startHour = (!isNaN(parts[0]) ? parts[0] : 9) + (!isNaN(parts[1]) ? parts[1] / 60 : 0);
+  const endHour = startHour + durationHours;
+
+  const stdStart = 9;  // 09:00
+  const stdEnd = 18;  // 18:00
+
+  const overlapStart = Math.max(startHour, stdStart);
+  const overlapEnd = Math.min(endHour, stdEnd);
+
+  const standardHours = Math.max(0, overlapEnd - overlapStart);
+  const overtimeHours = Math.max(0, durationHours - standardHours);
+
+  return {
+    standardHours,
+    overtimeHours,
+    totalHours: durationHours,
+    isOvertimeApplied: overtimeHours > 0
+  };
+}
+
+/**
+ * Calculates start and end minutes from midnight for a given booking or parameters
+ */
+export function getBookingTimeRange(
+  timeSlot: TimeSlot,
+  startTime?: string,
+  durationHours: number = 5
+): SlotRange {
+  if (timeSlot === 'fullday') {
+    return { startMin: 8 * 60, endMin: 24 * 60 };
+  }
+
+  const def = TIME_SLOT_DEFAULTS[timeSlot] || TIME_SLOT_DEFAULTS.afternoon;
+
+  if (startTime) {
+    const parts = startTime.split(':').map(Number);
+    if (!isNaN(parts[0]) && !isNaN(parts[1])) {
+      const startMin = parts[0] * 60 + parts[1];
+      const endMin = startMin + (durationHours * 60);
+
+      // Validate that custom startTime isn't a stale morning time when slot is evening/afternoon
+      let isValidForSlot = true;
+      if (timeSlot === 'morning' && (startMin < 6 * 60 || startMin > 12 * 60)) isValidForSlot = false;
+      if (timeSlot === 'afternoon' && (startMin < 11 * 60 || startMin > 17 * 60)) isValidForSlot = false;
+      if (timeSlot === 'evening' && startMin < 17 * 60) isValidForSlot = false;
+
+      if (isValidForSlot) {
+        return { startMin, endMin };
+      }
+    }
+  }
+
+  return { startMin: def.startMin, endMin: def.endMin };
+}
+
+/**
+ * Checks if two time ranges overlap
+ */
+export function doRangesOverlap(rangeA: SlotRange, rangeB: SlotRange): boolean {
+  return rangeA.startMin < rangeB.endMin && rangeA.endMin > rangeB.startMin;
+}
+
+/**
+ * Checks if two bookings conflict (same hall, same date, non-declined status, overlapping times)
+ */
+export function doBookingsOverlap(
+  bookingA: { hallId: HallId; eventDate: string; timeSlot: TimeSlot; startTime?: string; durationHours?: number; id?: string },
+  bookingB: { hallId: HallId; eventDate: string; timeSlot: TimeSlot; startTime?: string; durationHours?: number; id?: string; status: string }
+): boolean {
+  if (bookingB.status === 'declined') return false;
+  if (bookingA.id && bookingB.id && bookingA.id === bookingB.id) return false;
+  if (bookingA.hallId !== bookingB.hallId) return false;
+  if (bookingA.eventDate !== bookingB.eventDate) return false;
+
+  // Same hall & same date: check slot / time overlap
+  if (bookingA.timeSlot === 'fullday' || bookingB.timeSlot === 'fullday') {
+    return true; // Full day occupies all slots on that date
+  }
+
+  if (bookingA.timeSlot === bookingB.timeSlot) {
+    return true; // Same named slot
+  }
+
+  const rangeA = getBookingTimeRange(bookingA.timeSlot, bookingA.startTime, bookingA.durationHours);
+  const rangeB = getBookingTimeRange(bookingB.timeSlot, bookingB.startTime, bookingB.durationHours);
+
+  return doRangesOverlap(rangeA, rangeB);
+}
+
+export interface DayHallAvailability {
+  date: string;
+  hallId: HallId;
+  morning: { available: boolean; booking?: BookingRequest };
+  afternoon: { available: boolean; booking?: BookingRequest };
+  evening: { available: boolean; booking?: BookingRequest };
+  fullday: { available: boolean; booking?: BookingRequest };
+  hasConfirmedBooking: boolean;
+  hasPendingBooking: boolean;
+  conflictingBookings: BookingRequest[];
+}
+
+/**
+ * Gets slot-by-slot availability status for a specific hall on a specific date
+ */
+export function getHallSlotAvailability(
+  hallId: HallId,
+  dateStr: string,
+  allBookings: BookingRequest[]
+): DayHallAvailability {
+  const dateBookings = allBookings.filter(
+    b => b.hallId === hallId && b.eventDate === dateStr && b.status !== 'declined'
+  );
+
+  const confirmed = dateBookings.filter(b => b.status === 'confirmed');
+  const pending = dateBookings.filter(b => b.status === 'pending');
+
+  const checkSlot = (slot: TimeSlot) => {
+    const candidate = { hallId, eventDate: dateStr, timeSlot: slot };
+    const matchingConfirmed = confirmed.find(b => doBookingsOverlap(candidate, b));
+    const matchingPending = pending.find(b => doBookingsOverlap(candidate, b));
+
+    const booking = matchingConfirmed || matchingPending;
+    return {
+      available: !matchingConfirmed, // Only confirmed blocks availability completely
+      booking
+    };
+  };
+
+  return {
+    date: dateStr,
+    hallId,
+    morning: checkSlot('morning'),
+    afternoon: checkSlot('afternoon'),
+    evening: checkSlot('evening'),
+    fullday: checkSlot('fullday'),
+    hasConfirmedBooking: confirmed.length > 0,
+    hasPendingBooking: pending.length > 0,
+    conflictingBookings: dateBookings
+  };
+}

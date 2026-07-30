@@ -127,7 +127,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
             <div
               key={dateString}
               onClick={() => onSelectDateToBook(dateString)}
-              className="group cursor-pointer h-24 sm:h-28 rounded-xl bg-stone-950 border border-stone-800/80 hover:border-amber-500/80 p-2 flex flex-col justify-between transition-all duration-200 hover:scale-[1.02] hover:shadow-lg hover:z-10 relative overflow-hidden"
+              className="group cursor-pointer h-24 sm:h-28 rounded-xl bg-stone-950 border border-stone-800/80 hover:border-amber-500/80 p-2 flex flex-col justify-between transition-colors duration-150 relative overflow-hidden"
             >
               <div className="flex items-center justify-between">
                 <span className="font-mono text-sm font-bold text-stone-200 group-hover:text-amber-300">

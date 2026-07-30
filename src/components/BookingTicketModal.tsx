@@ -147,10 +147,10 @@ export const BookingTicketModal: React.FC<BookingTicketModalProps> = ({ booking,
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-sm overflow-y-auto animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 overflow-y-auto">
       <div 
         id="printable-ticket"
-        className="relative w-full max-w-2xl bg-stone-900 border border-amber-500/30 rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col my-auto"
+        className="relative w-full max-w-2xl bg-stone-900 border border-amber-500/30 rounded-3xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col my-auto"
       >
         {/* Decorative Top Accent Bar */}
         <div className="h-2.5 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 shrink-0" />
@@ -209,7 +209,7 @@ export const BookingTicketModal: React.FC<BookingTicketModalProps> = ({ booking,
                 )}
                 {isPending && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950 text-amber-400 border border-amber-700 text-xs font-bold uppercase tracking-wider">
-                    <Clock className="w-3.5 h-3.5 animate-pulse" />
+                    <Clock className="w-3.5 h-3.5" />
                     Pending Manager Review
                   </span>
                 )}
@@ -349,23 +349,49 @@ export const BookingTicketModal: React.FC<BookingTicketModalProps> = ({ booking,
 
             {/* Box 5: Pricing & Payment Summary */}
             <div className="p-3.5 rounded-2xl bg-amber-950/30 border border-amber-900/60 space-y-3 sm:col-span-2">
-              <span className="text-[10px] font-bold uppercase text-amber-400 tracking-wider block border-b border-amber-900/40 pb-1">
-                Financial Summary & Deposit Requirement
+              <span className="text-[10px] font-bold uppercase text-amber-400 tracking-wider block border-b border-amber-900/40 pb-1 flex items-center justify-between">
+                <span>Financial Summary & Payment Status</span>
+                {booking.paymentStatus === 'fully_paid' && (
+                  <span className="bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded text-[10px] uppercase font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Payment Confirmed (Paid in Full)
+                  </span>
+                )}
+                {booking.paymentStatus === 'deposit_paid' && (
+                  <span className="bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded text-[10px] uppercase font-bold flex items-center gap-1">
+                    <Receipt className="w-3 h-3 text-amber-400" /> Deposit Payment Confirmed
+                  </span>
+                )}
+                {(!booking.paymentStatus || booking.paymentStatus === 'unpaid') && (
+                  <span className="bg-stone-800 text-stone-400 border border-stone-700 px-2 py-0.5 rounded text-[10px] uppercase font-bold">
+                    Payment Unpaid
+                  </span>
+                )}
               </span>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-center">
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-center">
                 <div>
                   <span className="text-[10px] text-stone-400 uppercase block">Estimated Total</span>
-                  <span className="font-mono text-xl font-bold text-amber-300">RM {booking.estimatedTotal.toLocaleString()}</span>
+                  <span className="font-mono text-lg font-bold text-amber-300">RM {booking.estimatedTotal.toLocaleString()}</span>
                 </div>
 
                 <div>
                   <span className="text-[10px] text-stone-400 uppercase block">Security Deposit</span>
-                  <span className="font-mono text-sm font-bold text-emerald-400">RM {booking.depositAmount}</span>
+                  <span className="font-mono text-sm font-bold text-emerald-400">RM {booking.depositAmount.toLocaleString()}</span>
                 </div>
 
-                <div className="col-span-2 sm:col-span-1 text-left sm:text-right text-[10px] text-stone-400">
-                  <span className="block font-semibold text-stone-300">Currency: Ringgit Malaysia (RM)</span>
-                  <span>Deposit payable upon hall key release</span>
+                <div>
+                  <span className="text-[10px] text-stone-400 uppercase block">Amount Received</span>
+                  <span className="font-mono text-sm font-bold text-stone-100">
+                    RM {(booking.paidAmount || 0).toLocaleString()}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-stone-400 uppercase block">Receipt Ref / Method</span>
+                  <span className="font-mono text-xs font-bold text-amber-400 block truncate" title={booking.paymentReceiptRef || 'Pending'}>
+                    {booking.paymentReceiptRef || 'N/A'}
+                  </span>
+                  <span className="text-[10px] text-stone-400">{booking.paymentMethod || 'Unconfirmed'}</span>
                 </div>
               </div>
             </div>

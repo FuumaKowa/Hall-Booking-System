@@ -22,13 +22,13 @@ export const FailsafeModal: React.FC<FailsafeModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-stone-950/85 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-2xl bg-stone-900 border-2 border-red-500 rounded-3xl shadow-2xl overflow-hidden my-6">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-stone-950/90">
+      <div className="relative w-full max-w-2xl bg-stone-900 border-2 border-red-500 rounded-3xl shadow-xl overflow-hidden my-6">
         
         {/* Banner */}
         <div className="bg-red-950 px-6 py-4 border-b border-red-800 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-xl bg-red-900/80 border border-red-600 text-red-200 animate-pulse">
+            <div className="p-2.5 rounded-xl bg-red-900/80 border border-red-600 text-red-200">
               <ShieldAlert className="w-6 h-6" />
             </div>
             <div>

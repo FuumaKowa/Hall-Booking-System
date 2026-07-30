@@ -46,6 +46,12 @@ interface BookingRecord {
   status: 'pending' | 'confirmed' | 'declined' | 'completed';
   createdAt: string;
   notificationRead: boolean;
+  paymentStatus?: 'unpaid' | 'deposit_paid' | 'fully_paid';
+  paymentMethod?: string;
+  paidAmount?: number;
+  paymentReceiptRef?: string;
+  paymentConfirmedAt?: string;
+  paymentNotes?: string;
 }
 
 interface NotificationRecord {
@@ -89,7 +95,13 @@ const sampleBookings: BookingRecord[] = [
     depositAmount: 132,
     status: 'confirmed',
     createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-    notificationRead: true
+    notificationRead: true,
+    paymentStatus: 'fully_paid',
+    paymentMethod: 'Instant Bank Transfer',
+    paidAmount: 440,
+    paymentReceiptRef: 'REC-2026-9012',
+    paymentConfirmedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+    paymentNotes: 'Paid in full upon confirmation. Verified by Management.'
   },
   {
     id: 'b-102',
@@ -112,7 +124,13 @@ const sampleBookings: BookingRecord[] = [
     depositAmount: 283.5,
     status: 'pending',
     createdAt: new Date(Date.now() - 3600000 * 3).toISOString(),
-    notificationRead: false
+    notificationRead: false,
+    paymentStatus: 'deposit_paid',
+    paymentMethod: 'DuitNow QR Code',
+    paidAmount: 283.5,
+    paymentReceiptRef: 'REC-2026-8841',
+    paymentConfirmedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+    paymentNotes: '30% deposit received via QR Pay.'
   },
   {
     id: 'b-103',
@@ -135,7 +153,8 @@ const sampleBookings: BookingRecord[] = [
     depositAmount: 120,
     status: 'pending',
     createdAt: new Date(Date.now() - 3600000 * 1).toISOString(),
-    notificationRead: false
+    notificationRead: false,
+    paymentStatus: 'unpaid'
   }
 ];
 
@@ -526,6 +545,80 @@ async function startServer() {
     res.json({
       success: true,
       booking: store.bookings[bookingIndex]
+    });
+  });
+
+  // 4b. Record / Confirm Payment for Booking (Admin Site)
+  app.patch('/api/bookings/:id/payment', (req, res) => {
+    const { id } = req.params;
+    const { paymentStatus, paymentMethod, paidAmount, paymentReceiptRef, paymentNotes, autoApprove } = req.body;
+
+    const bookingIndex = store.bookings.findIndex(b => b.id === id);
+    if (bookingIndex === -1) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const booking = store.bookings[bookingIndex];
+
+    // Auto-approve schedule status check if requested and currently pending
+    if (autoApprove && booking.status !== 'confirmed') {
+      const conflictingConfirmed = store.bookings.find(
+        b => b.id !== id && b.status === 'confirmed' && checkBookingOverlap(booking, b)
+      );
+
+      if (conflictingConfirmed) {
+        return res.status(409).json({
+          success: false,
+          error: `Payment recorded, but DOUBLE-BOOKING FAILSAFE blocked auto-approval: ${conflictingConfirmed.customerName} (${conflictingConfirmed.referenceNumber}) is already confirmed for this slot.`,
+          failsafeTriggered: true,
+          conflictingBooking: conflictingConfirmed
+        });
+      }
+
+      booking.status = 'confirmed';
+    }
+
+    booking.paymentStatus = paymentStatus || 'fully_paid';
+    booking.paymentMethod = paymentMethod || 'Online Bank Transfer';
+    booking.paidAmount = paidAmount !== undefined ? Number(paidAmount) : (paymentStatus === 'deposit_paid' ? booking.depositAmount : booking.estimatedTotal);
+    booking.paymentReceiptRef = paymentReceiptRef || `REC-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
+    booking.paymentConfirmedAt = new Date().toISOString();
+    if (paymentNotes !== undefined) booking.paymentNotes = paymentNotes;
+
+    const statusTitle = booking.paymentStatus === 'fully_paid' 
+      ? `💳 PAYMENT CONFIRMED (PAID IN FULL)! [${booking.paymentReceiptRef}]`
+      : booking.paymentStatus === 'deposit_paid'
+      ? `💰 DEPOSIT CONFIRMED! [${booking.paymentReceiptRef}]`
+      : `⚠️ PAYMENT STATUS RESET`;
+
+    const notif: NotificationRecord = {
+      id: `notif-${Date.now()}`,
+      bookingId: booking.id,
+      referenceNumber: booking.referenceNumber,
+      type: 'STATUS_UPDATE',
+      title: statusTitle,
+      message: `Payment of RM ${booking.paidAmount.toLocaleString()} (${booking.paymentStatus.toUpperCase().replace('_', ' ')}) recorded via ${booking.paymentMethod} for ${booking.customerName} (${booking.referenceNumber}). Receipt Ref: ${booking.paymentReceiptRef}`,
+      customerName: booking.customerName,
+      hallName: booking.hallName,
+      eventDate: booking.eventDate,
+      estimatedTotal: booking.estimatedTotal,
+      timestamp: new Date().toISOString(),
+      read: false,
+      emailSentTo: `${booking.customerEmail} & wandaniel554@gmail.com`
+    };
+
+    store.notifications.unshift(notif);
+    saveData(store.bookings, store.notifications);
+    saveBookingToFirestore(booking);
+    saveNotifToFirestore(notif);
+
+    console.log(`[PAYMENT CONFIRMED] Booking ${booking.referenceNumber} | Paid: RM ${booking.paidAmount} (${booking.paymentStatus}) | Ref: ${booking.paymentReceiptRef}`);
+
+    res.json({
+      success: true,
+      message: `Payment updated successfully! Official receipt ${booking.paymentReceiptRef} generated.`,
+      booking,
+      notification: notif
     });
   });
 

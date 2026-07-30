@@ -51,7 +51,7 @@ export const HallCard: React.FC<HallCardProps> = ({ hall, onBookHall, onViewFloo
   return (
     <div 
       id={hall.id}
-      className={`rounded-3xl bg-stone-900 border ${themeAccent.border} p-6 sm:p-8 shadow-2xl ${themeAccent.glow} transition-all duration-300 relative overflow-hidden my-10`}
+      className={`rounded-3xl bg-stone-900 border ${themeAccent.border} p-6 sm:p-8 shadow-xl relative overflow-hidden my-10 transition-colors duration-150`}
     >
       
       {/* Top Header Badge Row */}
@@ -91,24 +91,24 @@ export const HallCard: React.FC<HallCardProps> = ({ hall, onBookHall, onViewFloo
         
         {/* Gallery Column (7 cols) */}
         <div className="lg:col-span-7 space-y-3">
-          <div className="relative rounded-2xl overflow-hidden aspect-[16/10] border border-stone-800 bg-stone-950 group">
+          <div className="relative rounded-2xl overflow-hidden aspect-[16/10] border border-stone-800 bg-stone-950">
             <img 
               src={images[activeImgIndex] || hall.primaryImage} 
               alt={hall.name}
               referrerPolicy="no-referrer"
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              className="w-full h-full object-cover"
             />
             
             <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-transparent to-transparent pointer-events-none"></div>
             
             <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-stone-200">
-              <span className="bg-stone-900/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-stone-700 font-mono">
+              <span className="bg-stone-900/90 px-2.5 py-1 rounded-lg border border-stone-700 font-mono">
                 {hall.sizeSqFt.toLocaleString()} sq. ft. Total Space
               </span>
 
               <button 
                 onClick={() => onViewFloorPlan(hall)}
-                className="bg-stone-900/90 hover:bg-stone-800 backdrop-blur-md text-amber-300 px-3 py-1 rounded-lg border border-amber-600/50 font-medium flex items-center gap-1.5 shadow-md transition-colors"
+                className="bg-stone-900/95 hover:bg-stone-800 text-amber-300 px-3 py-1 rounded-lg border border-amber-600/50 font-medium flex items-center gap-1.5 shadow-md transition-colors duration-150"
               >
                 <Layout className="w-3.5 h-3.5" />
                 Floor Layout Spec
@@ -123,9 +123,9 @@ export const HallCard: React.FC<HallCardProps> = ({ hall, onBookHall, onViewFloo
                 <button
                   key={idx}
                   onClick={() => setActiveImgIndex(idx)}
-                  className={`relative rounded-lg overflow-hidden w-20 h-14 border-2 transition-all ${
+                  className={`relative rounded-lg overflow-hidden w-20 h-14 border-2 transition-colors duration-150 ${
                     activeImgIndex === idx 
-                      ? 'border-amber-400 scale-105 shadow-lg' 
+                      ? 'border-amber-400 shadow-md' 
                       : 'border-stone-800 opacity-60 hover:opacity-100'
                   }`}
                 >
@@ -184,7 +184,7 @@ export const HallCard: React.FC<HallCardProps> = ({ hall, onBookHall, onViewFloo
           <div className="pt-2">
             <button
               onClick={() => onBookHall(hall.id)}
-              className={`w-full bg-gradient-to-r ${themeAccent.bgAccent} text-stone-950 font-bold py-3 px-4 rounded-xl text-sm transition-all duration-200 shadow-md hover:brightness-110 active:scale-[0.99] flex items-center justify-center space-x-2`}
+              className={`w-full bg-gradient-to-r ${themeAccent.bgAccent} text-stone-950 font-bold py-3 px-4 rounded-xl text-sm transition-colors duration-150 shadow-md hover:brightness-110 flex items-center justify-center space-x-2`}
             >
               <Calendar className="w-4 h-4 stroke-[2.2]" />
               <span>Book {hall.name}</span>

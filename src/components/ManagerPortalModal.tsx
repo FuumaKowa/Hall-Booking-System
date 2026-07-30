@@ -4,7 +4,7 @@ import {
   Trash2, RefreshCw, Filter, ShieldCheck, MailCheck, AlertTriangle, Send, ShieldAlert, Calendar, Check,
   Receipt, Search, Ticket
 } from 'lucide-react';
-import { BookingRequest, NotificationItem, BookingStatus, HallId, TimeSlot } from '../types';
+import { BookingRequest, NotificationItem, BookingStatus, PaymentStatus, HallId, TimeSlot } from '../types';
 import { doBookingsOverlap, getHallSlotAvailability } from '../utils/availability';
 import { HALLS_DATA } from '../data/hallsData';
 import { BookingTicketModal } from './BookingTicketModal';
@@ -16,6 +16,17 @@ interface ManagerPortalModalProps {
   onClose: () => void;
   onMarkNotificationsRead: () => void;
   onUpdateStatus: (bookingId: string, status: BookingStatus) => void;
+  onUpdatePayment: (
+    bookingId: string, 
+    paymentData: { 
+      paymentStatus: PaymentStatus;
+      paymentMethod?: string;
+      paidAmount?: number;
+      paymentReceiptRef?: string;
+      paymentNotes?: string;
+      autoApprove?: boolean;
+    }
+  ) => void;
   onDeleteBooking: (bookingId: string) => void;
 }
 
@@ -26,26 +37,96 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
   onClose,
   onMarkNotificationsRead,
   onUpdateStatus,
+  onUpdatePayment,
   onDeleteBooking
 }) => {
   const [activeTab, setActiveTab] = useState<'notifications' | 'bookings' | 'scheduleInspector' | 'emailLog'>('notifications');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [inspectorDate, setInspectorDate] = useState<string>('2026-08-15');
   const [viewingTicketBooking, setViewingTicketBooking] = useState<BookingRequest | null>(null);
+  
+  // Payment Modal State
+  const [confirmingPaymentBooking, setConfirmingPaymentBooking] = useState<BookingRequest | null>(null);
+  const [payStatus, setPayStatus] = useState<PaymentStatus>('fully_paid');
+  const [payMethod, setPayMethod] = useState<string>('Instant Online Bank Transfer');
+  const [payAmount, setPayAmount] = useState<number>(0);
+  const [payReceiptRef, setPayReceiptRef] = useState<string>('');
+  const [payNotes, setPayNotes] = useState<string>('');
+  const [payAutoApprove, setPayAutoApprove] = useState<boolean>(true);
+
+  const openPaymentDialog = (booking: BookingRequest) => {
+    setConfirmingPaymentBooking(booking);
+    const initialStatus = booking.paymentStatus || 'fully_paid';
+    setPayStatus(initialStatus);
+    setPayMethod(booking.paymentMethod || 'Instant Online Bank Transfer');
+    const initialAmount = booking.paidAmount !== undefined 
+      ? booking.paidAmount 
+      : (initialStatus === 'deposit_paid' ? booking.depositAmount : booking.estimatedTotal);
+    setPayAmount(initialAmount);
+    setPayReceiptRef(booking.paymentReceiptRef || `REC-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`);
+    setPayNotes(booking.paymentNotes || '');
+    setPayAutoApprove(booking.status === 'pending');
+  };
+
+  const handlePayStatusChange = (newStatus: PaymentStatus, booking: BookingRequest) => {
+    setPayStatus(newStatus);
+    if (newStatus === 'fully_paid') {
+      setPayAmount(booking.estimatedTotal);
+    } else if (newStatus === 'deposit_paid') {
+      setPayAmount(booking.depositAmount);
+    } else {
+      setPayAmount(0);
+    }
+  };
+
+  const handleConfirmPaymentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!confirmingPaymentBooking) return;
+
+    onUpdatePayment(confirmingPaymentBooking.id, {
+      paymentStatus: payStatus,
+      paymentMethod: payMethod,
+      paidAmount: Number(payAmount),
+      paymentReceiptRef: payReceiptRef,
+      paymentNotes: payNotes,
+      autoApprove: payAutoApprove
+    });
+
+    setConfirmingPaymentBooking(null);
+  };
 
   const filteredBookings = bookings.filter(b => {
     if (statusFilter !== 'all' && b.status !== statusFilter) return false;
+    
+    if (paymentFilter !== 'all') {
+      const bPayStatus = b.paymentStatus || 'unpaid';
+      if (paymentFilter === 'unpaid' && bPayStatus !== 'unpaid') return false;
+      if (paymentFilter === 'deposit_paid' && bPayStatus !== 'deposit_paid') return false;
+      if (paymentFilter === 'fully_paid' && bPayStatus !== 'fully_paid') return false;
+    }
+
     if (searchTerm.trim()) {
       const q = searchTerm.trim().toLowerCase();
       const matchRef = b.referenceNumber.toLowerCase().includes(q);
       const matchName = b.customerName.toLowerCase().includes(q);
       const matchEmail = b.customerEmail.toLowerCase().includes(q);
       const matchHall = b.hallName.toLowerCase().includes(q);
-      return matchRef || matchName || matchEmail || matchHall;
+      const matchReceipt = (b.paymentReceiptRef || '').toLowerCase().includes(q);
+      return matchRef || matchName || matchEmail || matchHall || matchReceipt;
     }
     return true;
   });
+
+  const totalCollectedRevenue = bookings
+    .filter(b => b.status !== 'declined')
+    .reduce((sum, b) => {
+      if (b.paidAmount) return sum + b.paidAmount;
+      if (b.paymentStatus === 'fully_paid') return sum + b.estimatedTotal;
+      if (b.paymentStatus === 'deposit_paid') return sum + b.depositAmount;
+      return sum;
+    }, 0);
 
   const totalRevenue = bookings
     .filter(b => b.status !== 'declined')
@@ -54,8 +135,8 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
   const pendingCount = bookings.filter(b => b.status === 'pending').length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/80 backdrop-blur-md overflow-y-auto">
-      <div className="relative w-full max-w-5xl bg-stone-900 border border-amber-500/40 rounded-3xl shadow-2xl overflow-hidden my-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/90 overflow-y-auto">
+      <div className="relative w-full max-w-5xl bg-stone-900 border border-amber-500/40 rounded-3xl shadow-xl overflow-hidden my-6">
         
         {/* Header Bar */}
         <div className="bg-stone-950 px-6 py-5 border-b border-stone-800 flex flex-wrap items-center justify-between gap-4">
@@ -112,9 +193,12 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
             <div className="text-xl font-bold font-serif text-amber-300 mt-0.5">{pendingCount} Action Needed</div>
           </div>
 
-          <div className="p-3 rounded-xl bg-stone-900 border border-stone-800">
-            <span className="text-[10px] text-stone-400 uppercase font-medium">Estimated Revenue</span>
-            <div className="text-xl font-bold font-serif text-emerald-400 mt-0.5">RM {totalRevenue.toLocaleString()}</div>
+          <div className="p-3 rounded-xl bg-stone-900 border border-emerald-900/60">
+            <span className="text-[10px] text-emerald-400 uppercase font-medium flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Confirmed Payments
+            </span>
+            <div className="text-xl font-bold font-serif text-emerald-400 mt-0.5">RM {totalCollectedRevenue.toLocaleString()}</div>
+            <span className="text-[9px] text-stone-400">Total Est: RM {totalRevenue.toLocaleString()}</span>
           </div>
 
           <div className="p-3 rounded-xl bg-stone-900 border border-stone-800">
@@ -239,13 +323,13 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
             <div className="space-y-4">
               
               {/* Filter & Search Row */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs bg-stone-950 p-3 rounded-2xl border border-stone-800">
+              <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 text-xs bg-stone-950 p-3 rounded-2xl border border-stone-800">
                 
                 {/* Search Bar */}
                 <div className="relative flex-1">
                   <input
                     type="text"
-                    placeholder="Search by Ticket ID (e.g. NHC-2026-X9K3), Name, or Hall..."
+                    placeholder="Search by Ticket ID (e.g. BK-2026-X9K3), Receipt (REC-...), Name, or Hall..."
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
                     className="w-full bg-stone-900 border border-stone-700 rounded-xl pl-9 pr-3 py-1.5 text-stone-100 text-xs focus:border-amber-500 focus:outline-none placeholder:text-stone-500 font-mono"
@@ -261,23 +345,50 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
                   )}
                 </div>
 
-                {/* Status Filter Buttons */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-stone-400 text-[11px]">Filter:</span>
-                  {['all', 'pending', 'confirmed', 'declined'].map(st => (
-                    <button
-                      key={st}
-                      onClick={() => setStatusFilter(st)}
-                      className={`px-3 py-1 rounded-lg uppercase text-[10px] font-bold transition-colors ${
-                        statusFilter === st 
-                          ? 'bg-amber-500 text-stone-950' 
-                          : 'bg-stone-800 text-stone-400 hover:text-stone-200'
-                      }`}
-                    >
-                      {st}
-                    </button>
-                  ))}
+                {/* Filters */}
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  {/* Schedule Status Filter */}
+                  <div className="flex items-center gap-1 bg-stone-900 p-1 rounded-xl border border-stone-800">
+                    <span className="text-stone-400 text-[10px] uppercase font-bold px-1.5">Schedule:</span>
+                    {['all', 'pending', 'confirmed', 'declined'].map(st => (
+                      <button
+                        key={st}
+                        onClick={() => setStatusFilter(st)}
+                        className={`px-2.5 py-1 rounded-lg uppercase text-[10px] font-bold transition-colors ${
+                          statusFilter === st 
+                            ? 'bg-amber-500 text-stone-950' 
+                            : 'text-stone-400 hover:text-stone-200'
+                        }`}
+                      >
+                        {st}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Payment Status Filter */}
+                  <div className="flex items-center gap-1 bg-stone-900 p-1 rounded-xl border border-stone-800">
+                    <span className="text-stone-400 text-[10px] uppercase font-bold px-1.5">Payment:</span>
+                    {[
+                      { id: 'all', label: 'All' },
+                      { id: 'fully_paid', label: '🟢 Fully Paid' },
+                      { id: 'deposit_paid', label: '🟡 Deposit' },
+                      { id: 'unpaid', label: '🔴 Unpaid' }
+                    ].map(pf => (
+                      <button
+                        key={pf.id}
+                        onClick={() => setPaymentFilter(pf.id)}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-colors ${
+                          paymentFilter === pf.id 
+                            ? 'bg-emerald-500 text-stone-950' 
+                            : 'text-stone-400 hover:text-stone-200'
+                        }`}
+                      >
+                        {pf.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
               </div>
 
               {/* Bookings List */}
@@ -304,7 +415,7 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
                       >
                         {/* CONFLICT ALERT BANNER */}
                         {conflictingConfirmed && b.status !== 'confirmed' && (
-                          <div className="p-3 rounded-xl bg-red-950/90 border border-red-700 text-red-200 text-xs flex items-start gap-2 animate-pulse">
+                          <div className="p-3 rounded-xl bg-red-950/90 border border-red-700 text-red-200 text-xs flex items-start gap-2">
                             <ShieldAlert className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                             <div>
                               <strong className="text-red-300 block font-bold">🚨 FAILSAFE CONFLICT DETECTED</strong>
@@ -351,6 +462,48 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
                           <div>
                             <span className="text-[10px] text-stone-400 block">Guests & Total</span>
                             <span className="font-bold text-emerald-400">{b.guestCount} Guests • RM {b.estimatedTotal.toLocaleString()}</span>
+                          </div>
+                        </div>
+
+                        {/* Confirmed Payment Details Bar */}
+                        <div className="p-2.5 rounded-xl bg-stone-900/90 border border-stone-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-[10px] uppercase font-bold text-stone-400">Payment Status:</span>
+                            {b.paymentStatus === 'fully_paid' && (
+                              <span className="bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Fully Paid (RM {(b.paidAmount || b.estimatedTotal).toLocaleString()})
+                              </span>
+                            )}
+                            {b.paymentStatus === 'deposit_paid' && (
+                              <span className="bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center gap-1">
+                                <Receipt className="w-3 h-3 text-amber-400" /> Deposit Paid (RM {(b.paidAmount || b.depositAmount).toLocaleString()})
+                              </span>
+                            )}
+                            {(!b.paymentStatus || b.paymentStatus === 'unpaid') && (
+                              <span className="bg-stone-800 text-stone-400 border border-stone-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase">
+                                Unpaid (RM 0 Collected)
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-3 text-[11px] text-stone-300">
+                            {b.paymentReceiptRef && (
+                              <span className="font-mono text-amber-300 font-semibold">
+                                Receipt: {b.paymentReceiptRef}
+                              </span>
+                            )}
+                            {b.paymentMethod && (
+                              <span className="text-stone-400 text-[10px]">
+                                Via {b.paymentMethod}
+                              </span>
+                            )}
+                            <button
+                              onClick={() => openPaymentDialog(b)}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 text-[11px] font-bold transition-colors flex items-center gap-1"
+                            >
+                              <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>{b.paymentStatus && b.paymentStatus !== 'unpaid' ? 'Edit Payment' : 'Confirm Payment'}</span>
+                            </button>
                           </div>
                         </div>
 
@@ -554,6 +707,189 @@ Target Manager: wandaniel554@gmail.com`}
             booking={viewingTicketBooking}
             onClose={() => setViewingTicketBooking(null)}
           />
+        )}
+
+        {/* CONFIRM PAYMENT MODAL OVERLAY */}
+        {confirmingPaymentBooking && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-stone-950/90">
+            <div className="relative w-full max-w-lg bg-stone-900 border border-emerald-500/50 rounded-3xl shadow-xl p-6 space-y-5">
+              
+              <div className="flex items-center justify-between border-b border-stone-800 pb-3">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                    <DollarSign className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif font-bold text-white text-lg">Confirm & Record Payment</h3>
+                    <p className="text-xs text-stone-400 font-mono">
+                      Ref: <span className="text-amber-400 font-bold">{confirmingPaymentBooking.referenceNumber}</span> • {confirmingPaymentBooking.customerName}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setConfirmingPaymentBooking(null)}
+                  className="p-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-400 hover:text-stone-200 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Booking Summary Box */}
+              <div className="p-3.5 rounded-2xl bg-stone-950 border border-stone-800 grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-[10px] text-stone-400 block uppercase">Venue & Date</span>
+                  <span className="font-bold text-stone-200">{confirmingPaymentBooking.hallName}</span>
+                  <span className="block text-[11px] text-amber-300">{confirmingPaymentBooking.eventDate} ({confirmingPaymentBooking.timeSlot})</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-stone-400 block uppercase">Grand Total / Deposit</span>
+                  <span className="font-mono text-emerald-400 font-bold text-sm block">Total: RM {confirmingPaymentBooking.estimatedTotal.toLocaleString()}</span>
+                  <span className="font-mono text-stone-300 text-[11px]">30% Deposit: RM {confirmingPaymentBooking.depositAmount.toLocaleString()}</span>
+                </div>
+              </div>
+
+              <form onSubmit={handleConfirmPaymentSubmit} className="space-y-4 text-xs">
+                
+                {/* Payment Tier Selector */}
+                <div>
+                  <label className="block text-stone-300 font-semibold mb-1.5 text-[11px]">
+                    1. Select Confirmed Payment Tier:
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handlePayStatusChange('fully_paid', confirmingPaymentBooking)}
+                      className={`p-2.5 rounded-xl border text-center font-bold transition-all ${
+                        payStatus === 'fully_paid'
+                          ? 'bg-emerald-950 border-emerald-500 text-emerald-200 ring-1 ring-emerald-500/50'
+                          : 'bg-stone-950 border-stone-800 text-stone-400 hover:border-stone-700'
+                      }`}
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
+                      <span className="block text-[11px]">Paid in Full (100%)</span>
+                      <span className="font-mono text-[10px] opacity-80">RM {confirmingPaymentBooking.estimatedTotal.toLocaleString()}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handlePayStatusChange('deposit_paid', confirmingPaymentBooking)}
+                      className={`p-2.5 rounded-xl border text-center font-bold transition-all ${
+                        payStatus === 'deposit_paid'
+                          ? 'bg-amber-950 border-amber-500 text-amber-200 ring-1 ring-amber-500/50'
+                          : 'bg-stone-950 border-stone-800 text-stone-400 hover:border-stone-700'
+                      }`}
+                    >
+                      <Receipt className="w-4 h-4 text-amber-400 mx-auto mb-1" />
+                      <span className="block text-[11px]">Deposit Paid (30%)</span>
+                      <span className="font-mono text-[10px] opacity-80">RM {confirmingPaymentBooking.depositAmount.toLocaleString()}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handlePayStatusChange('unpaid', confirmingPaymentBooking)}
+                      className={`p-2.5 rounded-xl border text-center font-bold transition-all ${
+                        payStatus === 'unpaid'
+                          ? 'bg-red-950 border-red-500 text-red-200 ring-1 ring-red-500/50'
+                          : 'bg-stone-950 border-stone-800 text-stone-400 hover:border-stone-700'
+                      }`}
+                    >
+                      <XCircle className="w-4 h-4 text-red-400 mx-auto mb-1" />
+                      <span className="block text-[11px]">Mark Unpaid</span>
+                      <span className="font-mono text-[10px] opacity-80">RM 0</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Amount & Method Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-stone-300 font-semibold mb-1 text-[11px]">Amount Received (RM):</label>
+                    <input
+                      type="number"
+                      value={payAmount}
+                      onChange={e => setPayAmount(Number(e.target.value))}
+                      className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-emerald-400 font-mono font-bold focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-stone-300 font-semibold mb-1 text-[11px]">Payment Method:</label>
+                    <select
+                      value={payMethod}
+                      onChange={e => setPayMethod(e.target.value)}
+                      className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 font-semibold focus:border-emerald-500 focus:outline-none"
+                    >
+                      <option value="Instant Online Bank Transfer">Instant Bank Transfer (FPX)</option>
+                      <option value="DuitNow QR / E-Wallet">DuitNow QR / E-Wallet</option>
+                      <option value="Credit / Debit Card">Credit / Debit Card</option>
+                      <option value="Cash / Over The Counter">Cash Deposit</option>
+                      <option value="Cheque / Banker's Draft">Cheque / Banker's Draft</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Receipt Reference No */}
+                <div>
+                  <label className="block text-stone-300 font-semibold mb-1 text-[11px]">Official Payment Receipt Reference No:</label>
+                  <input
+                    type="text"
+                    value={payReceiptRef}
+                    onChange={e => setPayReceiptRef(e.target.value)}
+                    className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-amber-300 font-mono font-bold focus:border-emerald-500 focus:outline-none"
+                    placeholder="REC-2026-XXXXX"
+                  />
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-stone-300 font-semibold mb-1 text-[11px]">Payment Remarks / Bank Ref Notes (Optional):</label>
+                  <input
+                    type="text"
+                    value={payNotes}
+                    onChange={e => setPayNotes(e.target.value)}
+                    className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-stone-200 focus:border-emerald-500 focus:outline-none"
+                    placeholder="e.g. Verified Maybank transfer ref MBB-9831"
+                  />
+                </div>
+
+                {/* Auto Approve Checkbox */}
+                {confirmingPaymentBooking.status === 'pending' && payStatus !== 'unpaid' && (
+                  <label className="p-3 rounded-xl bg-amber-950/40 border border-amber-800/80 flex items-center space-x-2.5 cursor-pointer text-amber-200">
+                    <input
+                      type="checkbox"
+                      checked={payAutoApprove}
+                      onChange={e => setPayAutoApprove(e.target.checked)}
+                      className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                    />
+                    <span className="text-[11px] font-semibold">
+                      Also automatically mark booking schedule as <strong>APPROVED / CONFIRMED</strong> upon payment receipt.
+                    </span>
+                  </label>
+                )}
+
+                {/* Submit Actions */}
+                <div className="pt-2 flex items-center justify-end space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingPaymentBooking(null)}
+                    className="px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 font-semibold text-xs"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 transition-colors shadow-lg"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Save & Issue Receipt</span>
+                  </button>
+                </div>
+
+              </form>
+
+            </div>
+          </div>
         )}
 
       </div>

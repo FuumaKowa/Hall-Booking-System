@@ -36,7 +36,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <button
               onClick={() => onOpenBookingModal()}
-              className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-6 py-3 rounded-xl text-sm transition-all shadow-lg flex items-center space-x-2 active:scale-95"
+              className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-6 py-3 rounded-xl text-sm transition-colors duration-150 shadow-lg flex items-center space-x-2"
             >
               <Calendar className="w-4.5 h-4.5 stroke-[2.2]" />
               <span>Book A Hall Now</span>
@@ -44,7 +44,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
 
             <a
               href="#availability-section"
-              className="bg-stone-900 hover:bg-stone-800 text-stone-200 border border-stone-700 hover:border-stone-500 font-semibold px-5 py-3 rounded-xl text-sm transition-all flex items-center space-x-2"
+              className="bg-stone-900 hover:bg-stone-800 text-stone-200 border border-stone-700 hover:border-stone-500 font-semibold px-5 py-3 rounded-xl text-sm transition-colors duration-150 flex items-center space-x-2"
             >
               <Clock className="w-4 h-4 text-amber-400" />
               <span>Check Live Availability</span>
@@ -58,13 +58,13 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
           {/* Card 1: Hall A */}
           <div 
             onClick={() => onSelectHallScroll('hall-grand-horizon')}
-            className="group cursor-pointer rounded-xl bg-stone-900/90 border border-stone-800 hover:border-amber-500/50 p-4 transition-all duration-200 relative overflow-hidden"
+            className="group cursor-pointer rounded-xl bg-stone-900 border border-stone-800 hover:border-amber-500/50 p-4 transition-colors duration-150 relative overflow-hidden"
           >
             <div className="flex items-center justify-between">
               <span className="inline-block px-2.5 py-0.5 rounded bg-stone-800 text-stone-200 text-xs font-medium border border-stone-700">
                 Hall A • Up to 30 Pax
               </span>
-              <span className="text-amber-400 text-xs font-semibold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+              <span className="text-amber-400 text-xs font-semibold flex items-center gap-1">
                 View Details <ArrowRight className="w-3.5 h-3.5" />
               </span>
             </div>
@@ -89,13 +89,13 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
           {/* Card 2: Hall B */}
           <div 
             onClick={() => onSelectHallScroll('hall-serenade-glasshouse')}
-            className="group cursor-pointer rounded-xl bg-stone-900/90 border border-stone-800 hover:border-emerald-500/50 p-4 transition-all duration-200 relative overflow-hidden"
+            className="group cursor-pointer rounded-xl bg-stone-900 border border-stone-800 hover:border-emerald-500/50 p-4 transition-colors duration-150 relative overflow-hidden"
           >
             <div className="flex items-center justify-between">
               <span className="inline-block px-2.5 py-0.5 rounded bg-stone-800 text-stone-200 text-xs font-medium border border-stone-700">
                 Hall B • Up to 35 Pax
               </span>
-              <span className="text-emerald-400 text-xs font-semibold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+              <span className="text-emerald-400 text-xs font-semibold flex items-center gap-1">
                 View Details <ArrowRight className="w-3.5 h-3.5" />
               </span>
             </div>

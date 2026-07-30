@@ -38,8 +38,8 @@ export const TicketLookupModal: React.FC<TicketLookupModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-md bg-stone-900 border border-amber-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5 text-stone-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90">
+      <div className="relative w-full max-w-md bg-stone-900 border border-amber-500/40 rounded-3xl p-6 sm:p-8 shadow-xl space-y-5 text-stone-100">
         
         <div className="flex items-center justify-between pb-3 border-b border-stone-800">
           <div className="flex items-center space-x-2">

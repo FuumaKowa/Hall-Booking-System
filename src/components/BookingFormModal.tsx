@@ -291,8 +291,8 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/80 backdrop-blur-md overflow-y-auto">
-      <div className="relative w-full max-w-3xl bg-stone-900 border border-amber-900/40 rounded-3xl shadow-2xl overflow-hidden my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/90 overflow-y-auto">
+      <div className="relative w-full max-w-3xl bg-stone-900 border border-amber-900/40 rounded-3xl shadow-xl overflow-hidden my-8">
         
         {/* Header Bar */}
         <div className="bg-stone-950 px-6 py-5 border-b border-stone-800 flex items-center justify-between">
@@ -322,7 +322,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
         {confirmationData ? (
           <div className="p-8 text-center space-y-6">
             <div className="w-16 h-16 rounded-full bg-emerald-950 border-2 border-emerald-500 text-emerald-400 flex items-center justify-center mx-auto shadow-xl shadow-emerald-950/50">
-              <CheckCircle2 className="w-10 h-10 animate-bounce" />
+              <CheckCircle2 className="w-10 h-10 text-emerald-400" />
             </div>
 
             <div>
@@ -491,7 +491,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
 
               {/* Interactive Calendar Picker Popup Grid */}
               {isCalendarOpen && (
-                <div className="p-4 bg-stone-950 border border-amber-500/40 rounded-xl space-y-3 shadow-2xl animate-fadeIn">
+                <div className="p-4 bg-stone-950 border border-amber-500/40 rounded-xl space-y-3 shadow-xl">
                   <div className="flex items-center justify-between text-xs pb-2 border-b border-stone-800">
                     <button
                       type="button"
@@ -657,7 +657,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
 
                 {/* DOUBLE-BOOKING FAILSAFE BANNER */}
                 {isSlotConfirmedBlocked && (
-                  <div className="p-3 rounded-xl bg-red-950 border border-red-700 text-red-200 text-xs flex items-start gap-2.5 mt-2 animate-pulse">
+                  <div className="p-3 rounded-xl bg-red-950 border border-red-700 text-red-200 text-xs flex items-start gap-2.5 mt-2">
                     <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
                     <div>
                       <h5 className="font-bold text-red-300">DOUBLE-BOOKING FAILSAFE ACTIVE</h5>
@@ -795,7 +795,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
 
                 {/* Auto Time Slot Change Feedback Pill */}
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-950/80 border border-amber-800 text-amber-300 text-[11px] font-semibold">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                   <span>
                     Auto Slot Package: <strong className="text-white uppercase">{timeSlot}</strong> ({durationHours} {durationHours === 1 ? 'hour' : 'hours'})
                   </span>

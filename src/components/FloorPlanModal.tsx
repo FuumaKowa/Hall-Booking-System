@@ -11,8 +11,8 @@ export const FloorPlanModal: React.FC<FloorPlanModalProps> = ({ hall, onClose })
   const isGrand = hall.id === 'hall-grand-horizon';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/80 backdrop-blur-md overflow-y-auto">
-      <div className="relative w-full max-w-2xl bg-stone-900 border border-amber-900/40 rounded-3xl shadow-2xl overflow-hidden my-8 p-6 sm:p-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/90 overflow-y-auto">
+      <div className="relative w-full max-w-2xl bg-stone-900 border border-amber-900/40 rounded-3xl shadow-xl overflow-hidden my-8 p-6 sm:p-8">
         
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-stone-800">

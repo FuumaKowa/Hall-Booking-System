@@ -13,7 +13,7 @@ import { BookingTicketModal } from './components/BookingTicketModal';
 import { Footer } from './components/Footer';
 
 import { HALLS_DATA } from './data/hallsData';
-import { Hall, HallId, BookingRequest, NotificationItem, BookingStatus } from './types';
+import { Hall, HallId, BookingRequest, NotificationItem, BookingStatus, PaymentStatus } from './types';
 import { Bell } from 'lucide-react';
 
 export default function App() {
@@ -128,6 +128,47 @@ export default function App() {
       }
     } catch (err) {
       console.error('Error updating status:', err);
+    }
+  };
+
+  const handleUpdatePayment = async (
+    bookingId: string, 
+    paymentData: { 
+      paymentStatus: PaymentStatus;
+      paymentMethod?: string;
+      paidAmount?: number;
+      paymentReceiptRef?: string;
+      paymentNotes?: string;
+      autoApprove?: boolean;
+    }
+  ) => {
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}/payment`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paymentData)
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        fetchData();
+        setToastAlert({
+          title: 'Payment Confirmed & Recorded',
+          message: `Payment status updated to "${paymentData.paymentStatus.toUpperCase()}". Receipt: ${data.booking?.paymentReceiptRef || 'Generated'}`
+        });
+        setTimeout(() => setToastAlert(null), 5000);
+      } else if (res.status === 409 || data.failsafeTriggered) {
+        setFailsafeModal({
+          isOpen: true,
+          title: 'DOUBLE-BOOKING FAILSAFE ACTIVATED',
+          message: data.error || 'Payment recorded, but auto-approval was blocked because another booking is ALREADY CONFIRMED for this slot.',
+          conflictingBooking: data.conflictingBooking
+        });
+        fetchData();
+      }
+    } catch (err) {
+      console.error('Error updating payment:', err);
     }
   };
 
@@ -254,6 +295,7 @@ export default function App() {
           onClose={() => setIsManagerPortalOpen(false)}
           onMarkNotificationsRead={handleMarkNotificationsRead}
           onUpdateStatus={handleUpdateStatus}
+          onUpdatePayment={handleUpdatePayment}
           onDeleteBooking={handleDeleteBooking}
         />
       )}

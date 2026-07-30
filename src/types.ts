@@ -42,6 +42,7 @@ export interface AddonOption {
 }
 
 export type BookingStatus = 'pending' | 'confirmed' | 'declined' | 'completed';
+export type PaymentStatus = 'unpaid' | 'deposit_paid' | 'fully_paid';
 
 export interface BookingRequest {
   id: string;
@@ -65,6 +66,14 @@ export interface BookingRequest {
   status: BookingStatus;
   createdAt: string; // ISO string
   notificationRead: boolean;
+
+  // Confirmed Payment Fields
+  paymentStatus?: PaymentStatus;
+  paymentMethod?: string;
+  paidAmount?: number;
+  paymentReceiptRef?: string;
+  paymentConfirmedAt?: string;
+  paymentNotes?: string;
 }
 
 export interface NotificationItem {

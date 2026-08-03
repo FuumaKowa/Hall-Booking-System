@@ -147,7 +147,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
     if (timeSlot === 'fullday') {
       baseHallFee = currentHall.fullDayRate;
     } else {
-      baseHallFee = currentHall.halfDayRate || 150;
+      baseHallFee = currentHall.halfDayRate || 149;
     }
 
     let addonsFee = 0;
@@ -811,7 +811,7 @@ _Sent via I-Madina Event Space Website_`;
                       <Clock className="w-3.5 h-3.5 text-amber-600" /> Rental Package & Price Breakdown
                     </span>
                     <span className="text-[10px] text-stone-500 font-mono font-normal">
-                      Standard Rates: Half Day (9am–1pm / 2pm–6pm) RM 150 • Full Day (9am–6pm) RM 300
+                      Standard Rates: Half Day (9am–1pm / 2pm–6pm) RM 149 • Full Day (9am–6pm) RM 299
                     </span>
                   </div>
 

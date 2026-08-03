@@ -28,9 +28,9 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <div className="h-11 w-11 rounded-xl bg-white border border-emerald-100 p-1 flex items-center justify-center shadow-xs group-hover:border-emerald-300 transition-all duration-200">
             <img 
-              src="/imadina-logo.svg" 
+              src="/imadina-logo.png" 
               alt="I-Madina Logo" 
-              className="h-full w-auto object-contain"
+              className="h-full w-auto object-contain rounded-lg"
               referrerPolicy="no-referrer"
             />
           </div>

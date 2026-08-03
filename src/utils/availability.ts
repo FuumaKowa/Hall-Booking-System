@@ -14,10 +14,10 @@ export const STANDARD_OPERATING_HOURS = {
 };
 
 export const TIME_SLOT_DEFAULTS: Record<TimeSlot, { startMin: number; endMin: number; label: string; timeRangeStr: string; defaultStart: string; defaultDuration: number }> = {
-  morning: { startMin: 9 * 60, endMin: 13 * 60, label: 'Morning Package (Standard)', timeRangeStr: '09:00 - 13:00', defaultStart: '09:00', defaultDuration: 4 },
-  afternoon: { startMin: 13 * 60, endMin: 18 * 60, label: 'Afternoon Package (Standard)', timeRangeStr: '13:00 - 18:00', defaultStart: '13:00', defaultDuration: 5 },
+  morning: { startMin: 9 * 60, endMin: 13 * 60, label: 'Half Day - Morning (09:00 - 13:00)', timeRangeStr: '09:00 - 13:00', defaultStart: '09:00', defaultDuration: 4 },
+  afternoon: { startMin: 14 * 60, endMin: 18 * 60, label: 'Half Day - Afternoon (14:00 - 18:00)', timeRangeStr: '14:00 - 18:00', defaultStart: '14:00', defaultDuration: 4 },
   evening: { startMin: 18 * 60, endMin: 22 * 60, label: 'Evening Package (Overtime)', timeRangeStr: '18:00 - 22:00', defaultStart: '18:00', defaultDuration: 4 },
-  fullday: { startMin: 9 * 60, endMin: 18 * 60, label: 'Full-Day Standard (09:00 - 18:00)', timeRangeStr: '09:00 - 18:00', defaultStart: '09:00', defaultDuration: 9 },
+  fullday: { startMin: 9 * 60, endMin: 18 * 60, label: 'Full Day Package (09:00 - 18:00)', timeRangeStr: '09:00 - 18:00', defaultStart: '09:00', defaultDuration: 9 },
 };
 
 export interface HoursBreakdown {

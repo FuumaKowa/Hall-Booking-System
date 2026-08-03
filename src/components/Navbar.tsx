@@ -18,7 +18,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenTicketLookup
 }) => {
   return (
-    <header className="sticky top-0 z-40 bg-stone-900 border-b border-stone-800 text-stone-100 shadow-md">
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200 text-stone-800 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
         
         {/* Brand Logo */}
@@ -26,40 +26,45 @@ export const Navbar: React.FC<NavbarProps> = ({
           className="flex items-center space-x-3 cursor-pointer group" 
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         >
-          <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center text-stone-950 font-bold shadow-md">
-            <Building2 className="w-5 h-5 stroke-[2.2]" />
+          <div className="h-11 w-11 rounded-xl bg-white border border-emerald-100 p-1 flex items-center justify-center shadow-xs group-hover:border-emerald-300 transition-all duration-200">
+            <img 
+              src="/imadina-logo.svg" 
+              alt="I-Madina Logo" 
+              className="h-full w-auto object-contain"
+              referrerPolicy="no-referrer"
+            />
           </div>
           <div>
-            <span className="font-serif text-lg sm:text-xl font-bold tracking-tight text-stone-100 block leading-none">
-              NILAI HARTA
+            <span className="font-serif text-lg sm:text-xl font-bold tracking-tight text-emerald-900 block leading-none group-hover:text-emerald-700 transition-colors">
+              I-MADINA
             </span>
-            <span className="block text-[10px] tracking-widest text-amber-400 font-medium uppercase mt-0.5">
-              Consultant Sdn Bhd
+            <span className="block text-[10px] tracking-widest text-sky-700 font-bold uppercase mt-0.5">
+              Event Space
             </span>
           </div>
         </div>
 
         {/* Desktop Quick Nav Links */}
-        <nav className="hidden lg:flex items-center space-x-8 text-sm font-medium">
+        <nav className="hidden lg:flex items-center space-x-8 text-sm font-semibold">
           <button 
             onClick={() => onSelectHallScroll('hall-grand-horizon')}
-            className="text-stone-300 hover:text-amber-400 transition-colors duration-150 py-1"
+            className="text-stone-700 hover:text-emerald-700 transition-colors duration-150 py-1"
           >
-            Hall A
+            ALPHA HALL
           </button>
 
           <button 
             onClick={() => onSelectHallScroll('hall-serenade-glasshouse')}
-            className="text-stone-300 hover:text-amber-400 transition-colors duration-150 py-1"
+            className="text-stone-700 hover:text-emerald-700 transition-colors duration-150 py-1"
           >
-            Hall B
+            HALL B
           </button>
 
           <a 
             href="#availability-section" 
-            className="text-stone-300 hover:text-amber-400 transition-colors duration-150 flex items-center gap-1.5"
+            className="text-stone-700 hover:text-emerald-700 transition-colors duration-150 flex items-center gap-1.5"
           >
-            <Calendar className="w-4 h-4 text-stone-400" />
+            <Calendar className="w-4 h-4 text-emerald-600" />
             Availability
           </a>
         </nav>
@@ -71,10 +76,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           {onOpenTicketLookup && (
             <button
               onClick={onOpenTicketLookup}
-              className="flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-stone-800 text-stone-300 border border-stone-700 hover:border-amber-500/60 hover:text-amber-300 transition-colors duration-150"
+              className="flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 hover:border-emerald-400 hover:bg-emerald-100 transition-colors duration-150"
               title="Lookup Official Booking Ticket & Proof Pass by Ref ID"
             >
-              <Ticket className="w-4 h-4 text-amber-400" />
+              <Ticket className="w-4 h-4 text-emerald-700" />
               <span className="hidden md:inline">Ticket Pass Lookup</span>
             </button>
           )}
@@ -84,20 +89,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={onOpenManagerPortal}
             className={`relative flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors duration-150 border ${
               unreadCount > 0
-                ? 'bg-amber-950/80 text-amber-200 border-amber-600'
-                : 'bg-stone-800 text-stone-300 border-stone-700 hover:border-stone-500 hover:text-white'
+                ? 'bg-sky-50 text-sky-900 border-sky-300'
+                : 'bg-stone-100 text-stone-700 border-stone-200 hover:border-stone-400 hover:text-stone-900 hover:bg-stone-200/60'
             }`}
             title="Open Management Portal & Booking Notifications"
           >
             <div className="relative flex items-center gap-1.5">
-              <Bell className={`w-4 h-4 ${unreadCount > 0 ? 'text-amber-400' : 'text-stone-400'}`} />
+              <Bell className={`w-4 h-4 ${unreadCount > 0 ? 'text-sky-600' : 'text-stone-500'}`} />
               {unreadCount > 0 && (
-                <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span className="w-2 h-2 rounded-full bg-sky-500"></span>
               )}
             </div>
             <span className="hidden sm:inline">Manager Portal</span>
             {unreadCount > 0 && (
-              <span className="text-[10px] bg-amber-900/90 text-amber-200 px-1.5 py-0.2 rounded font-bold">
+              <span className="text-[10px] bg-sky-600 text-white px-1.5 py-0.2 rounded font-bold">
                 {unreadCount}
               </span>
             )}
@@ -106,7 +111,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Primary Book Hall CTA */}
           <button
             onClick={() => onOpenBookingModal()}
-            className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm transition-colors duration-150 shadow-md flex items-center space-x-1.5"
+            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-xl text-xs sm:text-sm transition-colors duration-150 shadow-xs flex items-center space-x-1.5"
           >
             <Calendar className="w-4 h-4" />
             <span>Book A Hall</span>

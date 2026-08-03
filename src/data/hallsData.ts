@@ -1,202 +1,159 @@
 import { Hall, AddonOption } from '../types';
 
-const grandBallroomImg = '/src/assets/images/grand_ballroom_1785141625006.jpg';
-const ballroomStageImg = '/src/assets/images/ballroom_stage_1785141650950.jpg';
-const glasshouseHallImg = '/src/assets/images/glasshouse_hall_1785141637817.jpg';
-const glasshouseGardenImg = '/src/assets/images/glasshouse_garden_1785141664159.jpg';
+const hallAlphaImg = '/src/assets/images/Hall Alpha.png';
+const hallB1Img = '/src/assets/images/hall_b_view_one_1785735363397.jpg';
+const hallB2Img = '/src/assets/images/hall_b_view_two_1785735375099.jpg';
+const hallBPanoramicImg = '/src/assets/images/Hall B Panoramic.png';
+const surauFacilityImg = '/src/assets/images/surau.jpeg';
 
 export const HALLS_DATA: Hall[] = [
   {
     id: 'hall-grand-horizon',
-    name: 'Hall A',
-    tagline: 'Fully Equipped Meeting, Seminar & Class Hall for up to 30 Guests',
-    description: 'A comfortable, fully air-conditioned hall fitting around 30 people by Nilai Harta Consultant Sdn Bhd. Perfect for corporate meetings, small talks, classes, and training sessions. Complete with a normal whiteboard, prepared speaker & microphone system, normal projector, high-speed Wi-Fi, pantry with water dispenser, clean toilets, and a dedicated surau (prayer room).',
-    maxCapacity: 30,
-    minCapacity: 5,
-    pricePerHour: 60,
-    overtimeRatePerHour: 90,
-    fullDayRate: 450,
-    sizeSqFt: 550,
-    primaryImage: grandBallroomImg,
-    secondaryImages: [ballroomStageImg, grandBallroomImg],
-    badgeText: 'Hall A • Up to 30 Pax',
+    name: 'ALPHA HALL',
+    tagline: 'Affordable & fully equipped space for seminars, meetings & classes',
+    description: 'Affordable, comfortable and fully equipped space at I-Madina Event Space. Ideal for seminars, corporate meetings, talks, briefings, workshops, podcast recordings, classes, tuition sessions, and training programmes.',
+    maxCapacity: 53,
+    minCapacity: 1,
+    pricePerHour: 40,
+    overtimeRatePerHour: 60,
+    halfDayRate: 150,
+    fullDayRate: 300,
+    sizeSqFt: 650,
+    primaryImage: hallAlphaImg,
+    secondaryImages: [hallAlphaImg, surauFacilityImg],
+    badgeText: 'ALPHA HALL • Half Day RM150 / Full Day RM300',
     features: [
-      'Normal HD Projector & Motorized Screen',
-      'Prepared Speaker System & Handheld Wireless Mics',
-      'Normal Whiteboard with Color Markers & Eraser',
-      'Full Air Conditioning & High-Speed Wi-Fi',
-      'Pantry Area with Hot & Cold Water Dispenser',
-      'Clean On-Site Toilet & Surau (Prayer Room) Facilities'
+      '13 Tables & 53 Chairs',
+      '1 Projector & 1 Television',
+      '3 Microphones & 1 Speaker System',
+      'Fully Air-Conditioned',
+      'Surau & Toilet Access',
+      'Optional Catering (Price to be discussed)'
     ],
     amenities: [
       {
         iconName: 'Tv',
-        title: 'Normal Projector',
-        description: 'HD projector with HDMI connection & projection screen'
-      },
-      {
-        iconName: 'Volume2',
-        title: 'Speaker & Mic Prepared',
-        description: 'Crisp PA speaker system with wireless handheld microphones'
-      },
-      {
-        iconName: 'Users',
-        title: 'Normal Whiteboard',
-        description: 'Whiteboard with marker pens, erasers & flipchart'
-      },
-      {
-        iconName: 'Utensils',
-        title: 'Pantry & Water Dispenser',
-        description: 'Hot & cold purified water dispenser with complimentary tea/coffee'
-      },
-      {
-        iconName: 'Sparkles',
-        title: 'Toilet & Surau',
-        description: 'Clean restrooms and dedicated surau (prayer room) on-site'
-      },
-      {
-        iconName: 'Car',
-        title: 'Air-Con & Wi-Fi',
-        description: 'Quiet powerful air conditioning and high-speed Wi-Fi network'
-      }
-    ],
-    floorPlanSpec: {
-      dimensions: '25ft x 22ft',
-      ceilingHeight: '10ft Standard Ceiling',
-      stageDimensions: 'Presenter Podium & Speaker Desk Area',
-      parkingCapacity: '25 Building Visitor Bays'
-    },
-    idealFor: [
-      'Corporate Meetings & Board Discussions',
-      'Public Talks & Keynote Presentations',
-      'Educational Classes & Tutoring Sessions',
-      'Training Workshops & Seminars',
-      'Product Briefings & Team Meetings'
-    ]
-  },
-  {
-    id: 'hall-serenade-glasshouse',
-    name: 'Hall B',
-    tagline: 'Versatile Seminar & Training Hall for up to 35 Guests',
-    description: 'Bright and spacious hall fitting up to 35 guests, ideal for workshops, classes, lectures, and corporate sessions. Fully equipped with an ultra-bright projector, 75" Smart TV, magnetic whiteboards, speaker and mic system, air conditioning, high-speed Wi-Fi, pantry with water dispenser, clean toilets, and surau access.',
-    maxCapacity: 35,
-    minCapacity: 5,
-    pricePerHour: 75,
-    overtimeRatePerHour: 115,
-    fullDayRate: 550,
-    sizeSqFt: 650,
-    primaryImage: glasshouseHallImg,
-    secondaryImages: [glasshouseGardenImg, glasshouseHallImg],
-    badgeText: 'Hall B • Up to 35 Pax',
-    features: [
-      'Ultra-Bright Projector & 75-inch Smart TV Screen',
-      'Prepared Speaker System & Clip-on / Handheld Mics',
-      'Dual Whiteboards with Color Markers & Accessories',
-      'Full Air Conditioning & High-Speed Wi-Fi Network',
-      'Pantry Station with Hot & Cold Water Dispenser',
-      'On-Site Clean Toilets & Surau (Prayer Room) Access'
-    ],
-    amenities: [
-      {
-        iconName: 'Sun',
-        title: 'Projector & Smart TV',
-        description: 'Dual display setup with projector + 75" Smart TV for slides & videos'
-      },
-      {
-        iconName: 'Trees',
-        title: 'Dual Whiteboards',
-        description: 'Expansive whiteboards for teaching, diagrams, and brainstorming'
+        title: '1 Projector & 1 TV',
+        description: '1 projector and 1 television provided for visual media & slides'
       },
       {
         iconName: 'Mic',
-        title: 'Speaker & Mic System',
-        description: 'Lecture audio system with wireless clip-on & handheld mics'
+        title: '3 Mics & Speaker System',
+        description: '3 microphones and 1 audio speaker system'
       },
       {
-        iconName: 'Lightbulb',
-        title: 'Air-Con & Wi-Fi',
-        description: 'Silent high-capacity air conditioning & dedicated Wi-Fi'
+        iconName: 'Users',
+        title: '13 Tables & 53 Chairs',
+        description: '13 setup tables and 53 comfortable chairs'
       },
       {
         iconName: 'Wind',
-        title: 'Pantry & Water Dispenser',
-        description: 'Hot & cold water dispenser with instant tea & coffee'
-      },
-      {
-        iconName: 'Coffee',
-        title: 'Toilet & Surau Access',
-        description: 'Clean building restrooms and quiet surau for prayer'
+        title: 'Air-Con & Facilities',
+        description: 'Fully air-conditioned with surau and clean toilet access'
       }
     ],
     floorPlanSpec: {
       dimensions: '30ft x 22ft',
-      ceilingHeight: '10ft Standard Ceiling',
-      stageDimensions: 'Teacher Platform & Whiteboard Area',
-      parkingCapacity: '30 Building Visitor Bays'
+      ceilingHeight: '10ft Ceiling',
+      stageDimensions: 'Speaker & Presenter Area',
+      parkingCapacity: 'Visitor Parking Available'
     },
     idealFor: [
-      'Training Courses & Skill Workshops',
-      'Educational Classes & Lectures',
-      'Public Talks & Keynotes',
-      'Exams & Certification Testing',
-      'Community Meetings & Briefings'
+      'Seminars & Corporate Meetings',
+      'Talks and Briefings',
+      'Workshops & Training Programmes',
+      'Podcast Recordings',
+      'Classes & Tuition Sessions'
+    ]
+  },
+  {
+    id: 'hall-serenade-glasshouse',
+    name: 'HALL B',
+    tagline: 'Comfortable space for small gatherings, family events & meetings',
+    description: 'Comfortable and affordable event space at I-Madina Event Space. Suitable for small gatherings, birthday or anniversary celebrations, family events, private meetings, discussion sessions, networking events, and casual workshops.',
+    maxCapacity: 31,
+    minCapacity: 1,
+    pricePerHour: 40,
+    overtimeRatePerHour: 60,
+    halfDayRate: 150,
+    fullDayRate: 300,
+    sizeSqFt: 750,
+    primaryImage: hallBPanoramicImg,
+    secondaryImages: [hallB1Img, hallB2Img, surauFacilityImg],
+    badgeText: 'HALL B • Half Day RM150 / Full Day RM300',
+    features: [
+      '31 Chairs & 7 Round Tables',
+      '1 Dining & 1 Food-Serving Table',
+      '1 Coffee Table & Sofas / Lounge Chairs',
+      '3 Microphones & 1 Speaker System',
+      'Fully Air-Conditioned',
+      'Surau & Toilet Access',
+      'Optional Catering (Price to be discussed)'
+    ],
+    amenities: [
+      {
+        iconName: 'Armchair',
+        title: 'Lounge Seating & Sofas',
+        description: '2 lounge chairs, 1 two-seater sofa, 1 single-seater sofa & coffee table'
+      },
+      {
+        iconName: 'Utensils',
+        title: 'Dining & Serving Setup',
+        description: '7 round tables, 1 dining table, 1 food-serving table & 31 chairs'
+      },
+      {
+        iconName: 'Mic',
+        title: '3 Mics & Speaker System',
+        description: '3 microphones and 1 audio speaker system'
+      },
+      {
+        iconName: 'Wind',
+        title: 'Air-Con & Facilities',
+        description: 'Fully air-conditioned with surau and clean toilet access'
+      }
+    ],
+    floorPlanSpec: {
+      dimensions: '32ft x 24ft',
+      ceilingHeight: '10ft Ceiling',
+      stageDimensions: 'Discussion / Presentation Zone',
+      parkingCapacity: 'Visitor Parking Available'
+    },
+    idealFor: [
+      'Small Gatherings & Family Events',
+      'Birthday & Anniversary Celebrations',
+      'Private Meetings & Discussions',
+      'Networking Events',
+      'Casual Workshops'
     ]
   }
 ];
 
 export const ADDON_OPTIONS: AddonOption[] = [
   {
-    id: 'addon-projector-extra',
-    name: 'Extra HD Projector & Presenter Clicker',
-    category: 'av_tech',
-    price: 40,
-    priceUnit: 'flat',
-    description: 'Includes HDMI cable, wireless presenter laser clicker, and technical assistance.',
-    iconName: 'Video'
-  },
-  {
-    id: 'addon-catering-standard',
-    name: 'Bento Box / Snack Catering (Per Pax)',
+    id: 'addon-catering-service',
+    name: 'Optional Catering Service',
     category: 'catering',
-    price: 18,
-    priceUnit: 'per_guest',
-    description: 'Individual bento lunch or tea break set with drink, sandwich/pastry, and fruit.',
+    price: 0,
+    priceUnit: 'flat',
+    description: 'Custom catering available upon request (bento box, tea break, buffet). Final price will be discussed with manager.',
     iconName: 'Utensils'
   },
   {
-    id: 'addon-sound-dj',
-    name: 'Wireless Microphone Set (2 Mics)',
+    id: 'addon-projector-extra',
+    name: 'Presenter Clicker & Extra HDMI Cables',
     category: 'av_tech',
-    price: 30,
+    price: 15,
     priceUnit: 'flat',
-    description: 'Dual handheld wireless microphones with receiver and fresh batteries.',
-    iconName: 'Music'
+    description: 'Wireless presenter laser clicker and extra HDMI extension cables.',
+    iconName: 'Video'
   },
   {
     id: 'addon-whiteboard-pack',
-    name: 'Extra Flipchart Stand & Marker Pack',
+    name: 'Flipchart Stand & Marker Set',
     category: 'decor',
-    price: 25,
+    price: 15,
     priceUnit: 'flat',
-    description: 'Mobile flipchart tripod stand with 50 sheets of paper and 4 color markers.',
+    description: 'Flipchart stand with paper pad and color markers.',
     iconName: 'Flower2'
-  },
-  {
-    id: 'addon-coffee-station',
-    name: 'Premium Coffee & Tea Free-Flow Station',
-    category: 'catering',
-    price: 8,
-    priceUnit: 'per_guest',
-    description: 'Unlimited brewed coffee, tea varieties, biscuits, and bottled mineral water.',
-    iconName: 'GlassWater'
-  },
-  {
-    id: 'addon-assistant-service',
-    name: 'On-Site Event & Reception Assistant',
-    category: 'service',
-    price: 80,
-    priceUnit: 'flat',
-    description: 'Dedicated staff to assist with participant registration, room setup, and technical support.',
-    iconName: 'Car'
   }
 ];

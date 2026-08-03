@@ -38,31 +38,31 @@ export const TicketLookupModal: React.FC<TicketLookupModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90">
-      <div className="relative w-full max-w-md bg-stone-900 border border-amber-500/40 rounded-3xl p-6 sm:p-8 shadow-xl space-y-5 text-stone-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-xs">
+      <div className="relative w-full max-w-md bg-white border border-stone-200 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5 text-stone-800">
         
-        <div className="flex items-center justify-between pb-3 border-b border-stone-800">
+        <div className="flex items-center justify-between pb-3 border-b border-stone-200">
           <div className="flex items-center space-x-2">
-            <Ticket className="w-5 h-5 text-amber-400" />
-            <h3 className="font-serif font-bold text-lg text-white">
+            <Ticket className="w-5 h-5 text-amber-600" />
+            <h3 className="font-serif font-bold text-lg text-stone-900">
               Verify / Lookup Ticket ID
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-stone-800 text-stone-400 hover:text-white flex items-center justify-center transition-colors"
+            className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 flex items-center justify-center transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <p className="text-xs text-stone-300">
-          Enter the official <strong>Booking Reference / Ticket ID</strong> (e.g., <code className="bg-stone-950 px-1.5 py-0.5 rounded text-amber-300 font-mono">NHC-2026-X9K3</code>) to retrieve the official digital pass and proof of hall reservation.
+        <p className="text-xs text-stone-600">
+          Enter the official <strong>Booking Reference / Ticket ID</strong> (e.g., <code className="bg-stone-100 px-1.5 py-0.5 rounded text-amber-800 font-mono font-bold">NHC-2026-X9K3</code>) to retrieve the official digital pass and proof of hall reservation.
         </p>
 
         <form onSubmit={handleSearch} className="space-y-4">
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-amber-400 mb-1.5">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-amber-800 mb-1.5">
               Ticket Reference ID
             </label>
             <div className="relative">
@@ -74,15 +74,15 @@ export const TicketLookupModal: React.FC<TicketLookupModalProps> = ({
                   setSearchRef(e.target.value);
                   if (errorMsg) setErrorMsg(null);
                 }}
-                className="w-full bg-stone-950 border border-stone-700 rounded-xl pl-10 pr-4 py-3 text-stone-100 text-sm font-mono uppercase focus:border-amber-500 focus:outline-none placeholder:text-stone-600 font-bold tracking-wider"
+                className="w-full bg-stone-50 border border-stone-300 rounded-xl pl-10 pr-4 py-3 text-stone-900 text-sm font-mono uppercase focus:border-amber-500 focus:outline-none placeholder:text-stone-400 font-bold tracking-wider"
               />
               <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-3.5" />
             </div>
           </div>
 
           {errorMsg && (
-            <div className="p-3 rounded-xl bg-red-950/80 border border-red-700 text-red-200 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-900 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
@@ -91,13 +91,13 @@ export const TicketLookupModal: React.FC<TicketLookupModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-semibold"
+              className="px-4 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-bold transition-all shadow-md flex items-center space-x-1.5"
+              className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-bold transition-all shadow-xs flex items-center space-x-1.5"
             >
               <Ticket className="w-4 h-4" />
               <span>Retrieve Digital Pass</span>
@@ -107,8 +107,8 @@ export const TicketLookupModal: React.FC<TicketLookupModalProps> = ({
 
         {/* Quick recent bookings helper if available */}
         {bookings.length > 0 && (
-          <div className="pt-3 border-t border-stone-800 space-y-2">
-            <span className="text-[10px] text-stone-400 uppercase font-semibold block">
+          <div className="pt-3 border-t border-stone-200 space-y-2">
+            <span className="text-[10px] text-stone-500 uppercase font-semibold block">
               Recent Ticket References on File:
             </span>
             <div className="flex flex-wrap gap-1.5">
@@ -120,7 +120,7 @@ export const TicketLookupModal: React.FC<TicketLookupModalProps> = ({
                     onSelectBookingTicket(b);
                     onClose();
                   }}
-                  className="px-2.5 py-1 rounded-lg bg-stone-950 hover:bg-amber-950 text-amber-300 border border-stone-800 hover:border-amber-700 text-[11px] font-mono font-bold transition-all"
+                  className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-amber-50 text-amber-900 border border-stone-300 hover:border-amber-400 text-[11px] font-mono font-bold transition-all"
                 >
                   {b.referenceNumber}
                 </button>

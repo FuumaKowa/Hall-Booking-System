@@ -9,6 +9,7 @@ export interface Hall {
   minCapacity: number;
   pricePerHour: number;
   overtimeRatePerHour: number;
+  halfDayRate: number;
   fullDayRate: number;
   sizeSqFt: number;
   primaryImage: string;

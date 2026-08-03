@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { 
   X, Bell, CheckCircle2, Clock, XCircle, Mail, Phone, DollarSign, 
   Trash2, RefreshCw, Filter, ShieldCheck, MailCheck, AlertTriangle, Send, ShieldAlert, Calendar, Check,
-  Receipt, Search, Ticket
+  Receipt, Search, Ticket, Image, Upload, Plus, RotateCcw, Camera
 } from 'lucide-react';
-import { BookingRequest, NotificationItem, BookingStatus, PaymentStatus, HallId, TimeSlot } from '../types';
+import { BookingRequest, NotificationItem, BookingStatus, PaymentStatus, HallId, TimeSlot, Hall } from '../types';
 import { doBookingsOverlap, getHallSlotAvailability } from '../utils/availability';
 import { HALLS_DATA } from '../data/hallsData';
 import { BookingTicketModal } from './BookingTicketModal';
@@ -13,6 +13,7 @@ interface ManagerPortalModalProps {
   bookings: BookingRequest[];
   notifications: NotificationItem[];
   unreadCount: number;
+  halls?: Hall[];
   onClose: () => void;
   onMarkNotificationsRead: () => void;
   onUpdateStatus: (bookingId: string, status: BookingStatus) => void;
@@ -28,19 +29,83 @@ interface ManagerPortalModalProps {
     }
   ) => void;
   onDeleteBooking: (bookingId: string) => void;
+  onUpdateHallImages?: (hallId: string, primaryImage?: string, secondaryImages?: string[]) => Promise<void>;
+  onResetHallImages?: (hallId: string) => Promise<void>;
 }
 
 export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
   bookings,
   notifications,
   unreadCount,
+  halls = HALLS_DATA,
   onClose,
   onMarkNotificationsRead,
   onUpdateStatus,
   onUpdatePayment,
-  onDeleteBooking
+  onDeleteBooking,
+  onUpdateHallImages = async (_hallId: string, _primaryImage?: string, _secondaryImages?: string[]) => {},
+  onResetHallImages = async (_hallId: string) => {}
 }) => {
-  const [activeTab, setActiveTab] = useState<'notifications' | 'bookings' | 'scheduleInspector' | 'emailLog'>('notifications');
+  const [activeTab, setActiveTab] = useState<'notifications' | 'bookings' | 'scheduleInspector' | 'photos' | 'emailLog'>('notifications');
+  const [selectedHallForMedia, setSelectedHallForMedia] = useState<HallId>('hall-serenade-glasshouse');
+  const [uploadingState, setUploadingState] = useState<string | null>(null);
+  const [urlInput, setUrlInput] = useState<{ [key: string]: string }>({});
+
+  const handleFileSelectForPrimary = (hall: Hall, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingState(`Uploading cover image for ${hall.name}...`);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const dataUrl = event.target?.result as string;
+      if (dataUrl) {
+        await onUpdateHallImages(hall.id, dataUrl, hall.secondaryImages);
+      }
+      setUploadingState(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileSelectForSecondary = (hall: Hall, index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingState(`Uploading photo ${index + 1} for ${hall.name}...`);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const dataUrl = event.target?.result as string;
+      if (dataUrl) {
+        const updatedSecondary = [...hall.secondaryImages];
+        updatedSecondary[index] = dataUrl;
+        await onUpdateHallImages(hall.id, hall.primaryImage, updatedSecondary);
+      }
+      setUploadingState(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAddSecondaryPhoto = (hall: Hall, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingState(`Adding photo to ${hall.name}...`);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const dataUrl = event.target?.result as string;
+      if (dataUrl) {
+        const updatedSecondary = [...hall.secondaryImages, dataUrl];
+        await onUpdateHallImages(hall.id, hall.primaryImage, updatedSecondary);
+      }
+      setUploadingState(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveSecondaryPhoto = async (hall: Hall, index: number) => {
+    if (confirm(`Remove this photo from ${hall.name}?`)) {
+      const updatedSecondary = hall.secondaryImages.filter((_, idx) => idx !== index);
+      await onUpdateHallImages(hall.id, hall.primaryImage, updatedSecondary);
+    }
+  };
+
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -135,29 +200,29 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
   const pendingCount = bookings.filter(b => b.status === 'pending').length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/90 overflow-y-auto">
-      <div className="relative w-full max-w-5xl bg-stone-900 border border-amber-500/40 rounded-3xl shadow-xl overflow-hidden my-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-xs overflow-y-auto">
+      <div className="relative w-full max-w-5xl bg-white border border-stone-200 rounded-3xl shadow-2xl overflow-hidden my-6">
         
         {/* Header Bar */}
-        <div className="bg-stone-950 px-6 py-5 border-b border-stone-800 flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-stone-50 px-6 py-5 border-b border-stone-200 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
-            <div className="relative w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
-              <Bell className="w-5 h-5" />
+            <div className="relative w-10 h-10 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700">
+              <Bell className="w-5 h-5 text-amber-600" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-400 rounded-full"></span>
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-600 rounded-full"></span>
               )}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-serif font-bold text-stone-100 text-xl">
+                <h3 className="font-serif font-bold text-stone-900 text-xl">
                   Hall Owner & Manager Portal
                 </h3>
-                <span className="bg-emerald-950 text-emerald-300 border border-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold uppercase">
+                <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] px-2 py-0.5 rounded font-bold uppercase">
                   Live Notifications Active
                 </span>
               </div>
-              <p className="text-xs text-stone-400">
-                Real-time booking alert dashboard • Management Email: <strong className="text-amber-300">wandaniel554@gmail.com</strong>
+              <p className="text-xs text-stone-600">
+                Real-time booking alert dashboard • Management Email: <strong className="text-amber-800">wandaniel554@gmail.com</strong>
               </p>
             </div>
           </div>
@@ -166,15 +231,15 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
             {unreadCount > 0 && (
               <button
                 onClick={onMarkNotificationsRead}
-                className="px-3 py-1.5 rounded-lg bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-800 text-xs font-semibold transition-colors flex items-center gap-1"
+                className="px-3 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 text-xs font-semibold transition-colors flex items-center gap-1 shadow-xs"
               >
-                <CheckCircle2 className="w-3.5 h-3.5" /> Mark All Notifications Read
+                <CheckCircle2 className="w-3.5 h-3.5 text-amber-700" /> Mark All Notifications Read
               </button>
             )}
 
             <button 
               onClick={onClose}
-              className="p-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-400 hover:text-stone-200 transition-colors"
+              className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -182,44 +247,44 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
         </div>
 
         {/* Top Summary Metrics Bar */}
-        <div className="bg-stone-950/60 px-6 py-4 border-b border-stone-800 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-          <div className="p-3 rounded-xl bg-stone-900 border border-stone-800">
-            <span className="text-[10px] text-stone-400 uppercase font-medium">Total Bookings</span>
-            <div className="text-xl font-bold font-serif text-white mt-0.5">{bookings.length}</div>
+        <div className="bg-stone-50/60 px-6 py-4 border-b border-stone-200 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+          <div className="p-3 rounded-xl bg-white border border-stone-200 shadow-xs">
+            <span className="text-[10px] text-stone-500 uppercase font-semibold">Total Bookings</span>
+            <div className="text-xl font-bold font-serif text-stone-900 mt-0.5">{bookings.length}</div>
           </div>
 
-          <div className="p-3 rounded-xl bg-stone-900 border border-amber-900/50">
-            <span className="text-[10px] text-amber-400 uppercase font-medium">Pending Approvals</span>
-            <div className="text-xl font-bold font-serif text-amber-300 mt-0.5">{pendingCount} Action Needed</div>
+          <div className="p-3 rounded-xl bg-white border border-amber-300 shadow-xs">
+            <span className="text-[10px] text-amber-800 uppercase font-semibold">Pending Approvals</span>
+            <div className="text-xl font-bold font-serif text-amber-700 mt-0.5">{pendingCount} Action Needed</div>
           </div>
 
-          <div className="p-3 rounded-xl bg-stone-900 border border-emerald-900/60">
-            <span className="text-[10px] text-emerald-400 uppercase font-medium flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Confirmed Payments
+          <div className="p-3 rounded-xl bg-white border border-emerald-300 shadow-xs">
+            <span className="text-[10px] text-emerald-800 uppercase font-semibold flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Confirmed Payments
             </span>
-            <div className="text-xl font-bold font-serif text-emerald-400 mt-0.5">RM {totalCollectedRevenue.toLocaleString()}</div>
-            <span className="text-[9px] text-stone-400">Total Est: RM {totalRevenue.toLocaleString()}</span>
+            <div className="text-xl font-bold font-serif text-emerald-700 mt-0.5">RM {totalCollectedRevenue.toLocaleString()}</div>
+            <span className="text-[9px] text-stone-500 font-medium">Total Est: RM {totalRevenue.toLocaleString()}</span>
           </div>
 
-          <div className="p-3 rounded-xl bg-stone-900 border border-stone-800">
-            <span className="text-[10px] text-stone-400 uppercase font-medium">Alert Receiver</span>
-            <div className="text-xs font-semibold text-stone-200 mt-1 truncate" title="wandaniel554@gmail.com">
+          <div className="p-3 rounded-xl bg-white border border-stone-200 shadow-xs">
+            <span className="text-[10px] text-stone-500 uppercase font-semibold">Alert Receiver</span>
+            <div className="text-xs font-bold text-stone-800 mt-1 truncate" title="wandaniel554@gmail.com">
               wandaniel554@gmail.com
             </div>
           </div>
         </div>
 
         {/* Tab Navigation */}
-        <div className="px-6 pt-4 border-b border-stone-800 flex flex-wrap gap-4 sm:gap-6 text-xs font-bold">
+        <div className="px-6 pt-4 border-b border-stone-200 flex flex-wrap gap-4 sm:gap-6 text-xs font-bold bg-white">
           <button
             onClick={() => setActiveTab('notifications')}
             className={`pb-3 border-b-2 transition-colors flex items-center gap-2 ${
               activeTab === 'notifications' 
-                ? 'border-amber-400 text-amber-300' 
-                : 'border-transparent text-stone-400 hover:text-stone-200'
+                ? 'border-amber-500 text-amber-900' 
+                : 'border-transparent text-stone-500 hover:text-stone-800'
             }`}
           >
-            <Bell className="w-4 h-4" />
+            <Bell className="w-4 h-4 text-amber-600" />
             <span>Alert Feed ({notifications.length})</span>
             {unreadCount > 0 && (
               <span className="px-1.5 py-0.5 rounded-full bg-red-600 text-white text-[10px]">
@@ -232,11 +297,11 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
             onClick={() => setActiveTab('bookings')}
             className={`pb-3 border-b-2 transition-colors flex items-center gap-2 ${
               activeTab === 'bookings' 
-                ? 'border-amber-400 text-amber-300' 
-                : 'border-transparent text-stone-400 hover:text-stone-200'
+                ? 'border-amber-500 text-amber-900' 
+                : 'border-transparent text-stone-500 hover:text-stone-800'
             }`}
           >
-            <ShieldCheck className="w-4 h-4" />
+            <ShieldCheck className="w-4 h-4 text-amber-600" />
             <span>Manage All Bookings ({bookings.length})</span>
           </button>
 
@@ -244,23 +309,35 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
             onClick={() => setActiveTab('scheduleInspector')}
             className={`pb-3 border-b-2 transition-colors flex items-center gap-2 ${
               activeTab === 'scheduleInspector' 
-                ? 'border-amber-400 text-amber-300' 
-                : 'border-transparent text-stone-400 hover:text-stone-200'
+                ? 'border-amber-500 text-amber-900' 
+                : 'border-transparent text-stone-500 hover:text-stone-800'
             }`}
           >
-            <ShieldAlert className="w-4 h-4 text-amber-400" />
+            <ShieldAlert className="w-4 h-4 text-amber-600" />
             <span>Failsafe Schedule Inspector</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('photos')}
+            className={`pb-3 border-b-2 transition-colors flex items-center gap-2 ${
+              activeTab === 'photos' 
+                ? 'border-amber-500 text-amber-900' 
+                : 'border-transparent text-stone-500 hover:text-stone-800'
+            }`}
+          >
+            <Camera className="w-4 h-4 text-amber-600" />
+            <span>🖼️ Manage Hall Photos</span>
           </button>
 
           <button
             onClick={() => setActiveTab('emailLog')}
             className={`pb-3 border-b-2 transition-colors flex items-center gap-2 ${
               activeTab === 'emailLog' 
-                ? 'border-amber-400 text-amber-300' 
-                : 'border-transparent text-stone-400 hover:text-stone-200'
+                ? 'border-amber-500 text-amber-900' 
+                : 'border-transparent text-stone-500 hover:text-stone-800'
             }`}
           >
-            <MailCheck className="w-4 h-4" />
+            <MailCheck className="w-4 h-4 text-amber-600" />
             <span>Simulated Email Logs</span>
           </button>
         </div>
@@ -625,11 +702,12 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
 
                       {/* Slots Grid */}
                       <div className="space-y-2">
-                        {(['morning', 'afternoon', 'evening', 'fullday'] as TimeSlot[]).map(st => {
+                        {(['morning', 'afternoon', 'fullday'] as TimeSlot[]).map(st => {
                           const slotInfo = availability[st];
-                          const matchingBooking = slotInfo.booking;
+                          const matchingBooking = slotInfo?.booking;
                           const isConf = matchingBooking?.status === 'confirmed';
                           const isPend = matchingBooking?.status === 'pending';
+                          const slotLabel = st === 'morning' ? 'Morning Half Day (09:00 - 13:00)' : st === 'afternoon' ? 'Afternoon Half Day (14:00 - 18:00)' : 'Full Day Package (09:00 - 18:00)';
 
                           return (
                             <div key={st} className={`p-2.5 rounded-xl border flex items-center justify-between ${
@@ -638,7 +716,7 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
                               'bg-stone-900 border-stone-800 text-stone-300'
                             }`}>
                               <div>
-                                <span className="font-bold capitalize block text-xs">{st} Slot</span>
+                                <span className="font-bold block text-xs">{slotLabel}</span>
                                 {matchingBooking ? (
                                   <span className="text-[10px] opacity-80 block">
                                     {matchingBooking.customerName} ({matchingBooking.referenceNumber})
@@ -664,6 +742,304 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
                   );
                 })}
               </div>
+
+            </div>
+          )}
+
+          {/* TAB 5: MANAGE HALL PHOTOS (ADMIN UPLOAD & REPLACE) */}
+          {activeTab === 'photos' && (
+            <div className="space-y-6">
+              
+              {/* Info banner */}
+              <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-600/40 text-amber-200 text-xs flex items-start gap-3 shadow-md">
+                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0 mt-0.5">
+                  <Camera className="w-5 h-5" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <h4 className="font-bold text-amber-300 text-sm">Real-Time Hall Photo & Media Manager</h4>
+                  <p className="text-stone-300 leading-relaxed">
+                    Upload new photos or replace existing primary cover photos and secondary views for both <strong>Alpha Hall</strong> and <strong>Hall B</strong>. Any photo uploaded here is saved to the server and <strong>updates live instantly on the client website</strong>!
+                  </p>
+                </div>
+              </div>
+
+              {/* Status Indicator */}
+              {uploadingState && (
+                <div className="p-3 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-300 text-xs flex items-center gap-2 animate-pulse font-bold">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>{uploadingState}</span>
+                </div>
+              )}
+
+              {/* Hall Selector Tabs */}
+              <div className="flex items-center space-x-3 border-b border-stone-800 pb-3">
+                {halls.map(hall => (
+                  <button
+                    key={hall.id}
+                    onClick={() => setSelectedHallForMedia(hall.id)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+                      selectedHallForMedia === hall.id
+                        ? 'bg-amber-500 text-stone-950 shadow-lg scale-102'
+                        : 'bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-800'
+                    }`}
+                  >
+                    <Image className="w-4 h-4" />
+                    <span>{hall.name} Media</span>
+                    <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-stone-950/40">
+                      {1 + (hall.secondaryImages?.length || 0)} Photos
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Selected Hall Photos Content */}
+              {halls.filter(h => h.id === selectedHallForMedia).map(hall => (
+                <div key={hall.id} className="space-y-6">
+                  
+                  {/* Hall Header & Reset Button */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-stone-900/90 p-4 rounded-2xl border border-stone-800">
+                    <div>
+                      <h4 className="font-serif font-bold text-stone-100 text-lg flex items-center gap-2">
+                        <span>{hall.name}</span>
+                        <span className="text-xs font-sans font-normal text-amber-400 bg-amber-950/60 border border-amber-800 px-2.5 py-0.5 rounded-full">
+                          {hall.badgeText || hall.tagline}
+                        </span>
+                      </h4>
+                      <p className="text-xs text-stone-400 mt-0.5">
+                        Replace cover photo, update interior gallery views, or add extra venue photos.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={async () => {
+                        if (confirm(`Reset all photos for ${hall.name} back to default?`)) {
+                          setUploadingState(`Resetting ${hall.name} photos...`);
+                          await onResetHallImages(hall.id);
+                          setUploadingState(null);
+                        }
+                      }}
+                      className="px-3 py-2 rounded-xl bg-stone-800 hover:bg-red-950/50 hover:border-red-600/50 text-stone-300 hover:text-red-300 border border-stone-700 text-xs font-semibold transition-all flex items-center space-x-1.5 self-start sm:self-auto"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Reset Hall Photos</span>
+                    </button>
+                  </div>
+
+                  {/* SECTION 1: PRIMARY COVER IMAGE */}
+                  <div className="p-5 rounded-2xl bg-stone-950 border border-stone-800 space-y-4">
+                    <div className="flex items-center justify-between border-b border-stone-800/80 pb-3">
+                      <div>
+                        <h5 className="font-bold text-amber-400 text-sm flex items-center gap-2">
+                          <span>🌟 Primary Main Cover Image</span>
+                          <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded font-mono uppercase">
+                            Main Card Banner
+                          </span>
+                        </h5>
+                        <p className="text-[11px] text-stone-400">
+                          This is the main hero/card photo visible on the main page.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                      {/* Image Preview */}
+                      <div className="relative aspect-video rounded-xl overflow-hidden border border-stone-700 bg-stone-900 group">
+                        <img 
+                          src={hall.primaryImage} 
+                          alt={`${hall.name} Cover`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end p-2.5">
+                          <span className="text-[10px] font-bold text-white bg-black/60 px-2 py-0.5 rounded backdrop-blur-xs">
+                            Current Cover Image
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Controls & Upload Input */}
+                      <div className="md:col-span-2 space-y-3">
+                        <label className="block">
+                          <span className="text-xs font-bold text-stone-300 mb-1.5 block">
+                            📁 Upload New Cover Image File from Device
+                          </span>
+                          <div className="relative flex items-center">
+                            <input 
+                              type="file" 
+                              accept="image/*"
+                              onChange={(e) => handleFileSelectForPrimary(hall, e)}
+                              className="hidden" 
+                              id={`primary-upload-${hall.id}`}
+                            />
+                            <label
+                              htmlFor={`primary-upload-${hall.id}`}
+                              className="w-full cursor-pointer px-4 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs transition-all flex items-center justify-center space-x-2 shadow-md hover:shadow-amber-500/20"
+                            >
+                              <Upload className="w-4 h-4" />
+                              <span>Select Image File from Computer / Mobile</span>
+                            </label>
+                          </div>
+                        </label>
+
+                        {/* Or Paste URL */}
+                        <div className="pt-2 border-t border-stone-800/80">
+                          <span className="text-[11px] text-stone-400 block mb-1">
+                            or Paste Direct Image URL:
+                          </span>
+                          <div className="flex gap-2">
+                            <input 
+                              type="url"
+                              placeholder="https://example.com/hall-photo.jpg"
+                              value={urlInput[`primary-${hall.id}`] || ''}
+                              onChange={(e) => setUrlInput(prev => ({ ...prev, [`primary-${hall.id}`]: e.target.value }))}
+                              className="flex-1 px-3 py-1.5 rounded-xl bg-stone-900 border border-stone-700 text-xs text-stone-200 placeholder-stone-500 focus:outline-none focus:border-amber-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const url = urlInput[`primary-${hall.id}`];
+                                if (url) {
+                                  setUploadingState('Applying cover image URL...');
+                                  await onUpdateHallImages(hall.id, url, hall.secondaryImages);
+                                  setUrlInput(prev => ({ ...prev, [`primary-${hall.id}`]: '' }));
+                                  setUploadingState(null);
+                                }
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-bold transition-all border border-stone-700"
+                            >
+                              Apply URL
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SECTION 2: SECONDARY / GALLERY VIEWS */}
+                  <div className="p-5 rounded-2xl bg-stone-950 border border-stone-800 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-800/80 pb-3">
+                      <div>
+                        <h5 className="font-bold text-amber-400 text-sm flex items-center gap-2">
+                          <span>📸 Secondary Interior Gallery Views ({hall.secondaryImages?.length || 0})</span>
+                        </h5>
+                        <p className="text-[11px] text-stone-400">
+                          These photos show interior setups, seating arrangements, amenities, and surau facilities on the client site.
+                        </p>
+                      </div>
+
+                      {/* Add Extra Gallery Photo Button */}
+                      <div>
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={(e) => handleAddSecondaryPhoto(hall, e)}
+                          className="hidden" 
+                          id={`add-gallery-${hall.id}`}
+                        />
+                        <label
+                          htmlFor={`add-gallery-${hall.id}`}
+                          className="cursor-pointer px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all flex items-center space-x-1.5 shadow-md"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add New Gallery Photo</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Secondary Photos Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {hall.secondaryImages.map((imgUrl, idx) => {
+                        const isView1 = imgUrl.toLowerCase().includes('view_one') || imgUrl.toLowerCase().includes('view_1') || imgUrl.toLowerCase().includes('hall_b_1');
+                        const isView2 = imgUrl.toLowerCase().includes('view_two') || imgUrl.toLowerCase().includes('view_2') || imgUrl.toLowerCase().includes('hall_b_2');
+                        const isSurau = imgUrl.toLowerCase().includes('surau');
+                        
+                        const labelText = isView1 ? 'View 1 (Tables & Mics)' : isView2 ? 'View 2 (Lounge & Sofas)' : isSurau ? 'Surau Facility' : `Gallery View ${idx + 1}`;
+
+                        return (
+                          <div key={idx} className="p-3 rounded-xl bg-stone-900 border border-stone-800 space-y-3 flex flex-col justify-between">
+                            <div className="space-y-2">
+                              <div className="relative aspect-video rounded-lg overflow-hidden border border-stone-700 bg-black group">
+                                <img 
+                                  src={imgUrl} 
+                                  alt={`${hall.name} View ${idx + 1}`}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                                />
+                                <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/70 text-[10px] font-bold text-amber-300 backdrop-blur-xs">
+                                  {labelText}
+                                </div>
+                              </div>
+
+                              <div className="text-[11px] font-bold text-stone-300 truncate" title={labelText}>
+                                {labelText}
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 pt-2 border-t border-stone-800">
+                              {/* Replace File Button */}
+                              <div>
+                                <input 
+                                  type="file" 
+                                  accept="image/*"
+                                  onChange={(e) => handleFileSelectForSecondary(hall, idx, e)}
+                                  className="hidden" 
+                                  id={`sec-upload-${hall.id}-${idx}`}
+                                />
+                                <label
+                                  htmlFor={`sec-upload-${hall.id}-${idx}`}
+                                  className="w-full cursor-pointer px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-amber-300 hover:text-amber-200 border border-stone-700 font-bold text-xs transition-all flex items-center justify-center space-x-1.5"
+                                >
+                                  <Upload className="w-3.5 h-3.5" />
+                                  <span>Replace Photo File</span>
+                                </label>
+                              </div>
+
+                              {/* Paste URL or Remove */}
+                              <div className="flex gap-1.5 items-center">
+                                <input 
+                                  type="url"
+                                  placeholder="Or paste URL..."
+                                  value={urlInput[`sec-${hall.id}-${idx}`] || ''}
+                                  onChange={(e) => setUrlInput(prev => ({ ...prev, [`sec-${hall.id}-${idx}`]: e.target.value }))}
+                                  className="flex-1 px-2 py-1 rounded bg-stone-950 border border-stone-800 text-[10px] text-stone-200 placeholder-stone-600 focus:outline-none focus:border-amber-500"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const url = urlInput[`sec-${hall.id}-${idx}`];
+                                    if (url) {
+                                      setUploadingState(`Applying URL for photo ${idx + 1}...`);
+                                      const updatedSecondary = [...hall.secondaryImages];
+                                      updatedSecondary[idx] = url;
+                                      await onUpdateHallImages(hall.id, hall.primaryImage, updatedSecondary);
+                                      setUrlInput(prev => ({ ...prev, [`sec-${hall.id}-${idx}`]: '' }));
+                                      setUploadingState(null);
+                                    }
+                                  }}
+                                  className="px-2 py-1 rounded bg-stone-800 hover:bg-stone-700 text-[10px] text-stone-300 font-bold border border-stone-700"
+                                >
+                                  Apply
+                                </button>
+
+                                {hall.secondaryImages.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveSecondaryPhoto(hall, idx)}
+                                    className="p-1 rounded bg-red-950/60 hover:bg-red-900/80 text-red-400 hover:text-red-200 border border-red-800/60 transition-colors"
+                                    title="Delete this photo"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                </div>
+              ))}
 
             </div>
           )}

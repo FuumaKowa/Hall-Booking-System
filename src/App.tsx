@@ -17,6 +17,7 @@ import { Hall, HallId, BookingRequest, NotificationItem, BookingStatus, PaymentS
 import { Bell } from 'lucide-react';
 
 export default function App() {
+  const [halls, setHalls] = useState<Hall[]>(HALLS_DATA);
   const [bookings, setBookings] = useState<BookingRequest[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
@@ -46,12 +47,13 @@ export default function App() {
 
   const [toastAlert, setToastAlert] = useState<{ title: string; message: string } | null>(null);
 
-  // Load bookings and notifications on mount
+  // Load bookings, notifications, and hall data on mount
   const fetchData = async () => {
     try {
-      const [bRes, nRes] = await Promise.all([
+      const [bRes, nRes, hRes] = await Promise.all([
         fetch('/api/bookings'),
-        fetch('/api/notifications')
+        fetch('/api/notifications'),
+        fetch('/api/halls')
       ]);
 
       if (bRes.ok) {
@@ -64,6 +66,13 @@ export default function App() {
         setNotifications(nData.notifications || []);
         setUnreadCount(nData.unreadCount || 0);
       }
+
+      if (hRes.ok) {
+        const hData = await hRes.json();
+        if (hData.halls) {
+          setHalls(hData.halls);
+        }
+      }
     } catch (err) {
       console.error('Failed to fetch initial data:', err);
     }
@@ -72,6 +81,46 @@ export default function App() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleUpdateHallImages = async (hallId: string, primaryImage?: string, secondaryImages?: string[]) => {
+    try {
+      const res = await fetch(`/api/halls/${hallId}/images`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ primaryImage, secondaryImages })
+      });
+      const data = await res.json();
+      if (res.ok && data.halls) {
+        setHalls(data.halls);
+        setToastAlert({
+          title: 'Hall Photos Updated Live',
+          message: `Photos updated for ${hallId}. Changes are visible across the site!`
+        });
+        setTimeout(() => setToastAlert(null), 5000);
+      }
+    } catch (err) {
+      console.error('Error updating hall images:', err);
+    }
+  };
+
+  const handleResetHallImages = async (hallId: string) => {
+    try {
+      const res = await fetch(`/api/halls/${hallId}/images/reset`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (res.ok && data.halls) {
+        setHalls(data.halls);
+        setToastAlert({
+          title: 'Hall Photos Reset',
+          message: `Hall photos restored to default.`
+        });
+        setTimeout(() => setToastAlert(null), 5000);
+      }
+    } catch (err) {
+      console.error('Error resetting hall images:', err);
+    }
+  };
 
   // Handlers
   const handleOpenBookingModal = (hallId?: HallId, dateStr?: string) => {
@@ -196,21 +245,21 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-100 font-sans selection:bg-amber-500 selection:text-stone-950">
+    <div className="min-h-screen bg-stone-50 text-stone-800 font-sans selection:bg-amber-500 selection:text-white">
       
       {/* Toast Alert Popup */}
       {toastAlert && (
-        <div className="fixed top-20 right-4 z-50 max-w-sm bg-stone-900 border border-stone-700 rounded-xl p-3.5 shadow-xl flex items-start space-x-3 text-xs">
-          <div className="p-1.5 rounded-lg bg-stone-800 text-amber-400 shrink-0">
+        <div className="fixed top-20 right-4 z-50 max-w-sm bg-white border border-stone-200 rounded-xl p-3.5 shadow-xl flex items-start space-x-3 text-xs">
+          <div className="p-1.5 rounded-lg bg-amber-100 text-amber-700 shrink-0">
             <Bell className="w-4 h-4" />
           </div>
           <div className="flex-1">
-            <h4 className="font-bold text-stone-200">{toastAlert.title}</h4>
-            <p className="text-stone-400 mt-0.5">{toastAlert.message}</p>
+            <h4 className="font-bold text-stone-900">{toastAlert.title}</h4>
+            <p className="text-stone-600 mt-0.5">{toastAlert.message}</p>
           </div>
           <button 
             onClick={() => setToastAlert(null)}
-            className="text-stone-400 hover:text-stone-200 ml-1"
+            className="text-stone-400 hover:text-stone-600 ml-1"
           >
             ✕
           </button>
@@ -233,21 +282,11 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
-        {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto my-6">
-          <h2 className="font-serif text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            Our Venue Spaces
-          </h2>
-          <p className="text-xs sm:text-sm text-stone-400 mt-1 font-light">
-            Designed for distinct celebration styles with full equipment support and real-time manager assistance.
-          </p>
-        </div>
-
-        {/* The 2 Hall Cards */}
-        <div className="space-y-8">
-          {HALLS_DATA.map(hall => (
+        {/* The 2 Hall Cards - Front and Center */}
+        <div className="space-y-6">
+          {halls.map(hall => (
             <HallCard 
               key={hall.id}
               hall={hall}
@@ -292,11 +331,14 @@ export default function App() {
           bookings={bookings}
           notifications={notifications}
           unreadCount={unreadCount}
+          halls={halls}
           onClose={() => setIsManagerPortalOpen(false)}
           onMarkNotificationsRead={handleMarkNotificationsRead}
           onUpdateStatus={handleUpdateStatus}
           onUpdatePayment={handleUpdatePayment}
           onDeleteBooking={handleDeleteBooking}
+          onUpdateHallImages={handleUpdateHallImages}
+          onResetHallImages={handleResetHallImages}
         />
       )}
 

@@ -71,6 +71,47 @@ interface NotificationRecord {
 }
 
 const DATA_FILE = path.join(process.cwd(), 'bookings_store.json');
+const HALL_IMAGES_FILE = path.join(process.cwd(), 'hall_images_store.json');
+
+interface CustomHallImages {
+  primaryImage?: string;
+  secondaryImages?: string[];
+}
+
+let customHallImagesMap: Record<string, CustomHallImages> = {};
+
+function loadHallImages() {
+  try {
+    if (fs.existsSync(HALL_IMAGES_FILE)) {
+      const raw = fs.readFileSync(HALL_IMAGES_FILE, 'utf-8');
+      customHallImagesMap = JSON.parse(raw);
+    }
+  } catch (err) {
+    console.error('Error reading hall images store:', err);
+  }
+}
+
+function saveHallImages() {
+  try {
+    fs.writeFileSync(HALL_IMAGES_FILE, JSON.stringify(customHallImagesMap, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error saving hall images store:', err);
+  }
+}
+
+loadHallImages();
+
+function getEffectiveHalls() {
+  return HALLS_DATA.map(hall => {
+    const custom = customHallImagesMap[hall.id];
+    if (!custom) return hall;
+    return {
+      ...hall,
+      primaryImage: custom.primaryImage || hall.primaryImage,
+      secondaryImages: custom.secondaryImages || hall.secondaryImages
+    };
+  });
+}
 
 // Initialize initial default sample bookings if empty
 const sampleBookings: BookingRecord[] = [
@@ -246,6 +287,17 @@ async function syncFromFirestore() {
       store.notifications = fetchedNotifs;
       console.log(`[Firestore Database] Active! Synced ${store.bookings.length} bookings and ${store.notifications.length} notifications from Cloud Firestore.`);
     }
+
+    try {
+      const imagesSnap = await getDocs(collection(db, 'hall_images'));
+      imagesSnap.forEach(d => {
+        customHallImagesMap[d.id] = d.data() as CustomHallImages;
+      });
+      saveHallImages();
+    } catch (e) {
+      console.error('[Firestore] Error syncing hall_images:', e);
+    }
+
     saveData(store.bookings, store.notifications);
   } catch (err) {
     console.error('[Firestore Database] Error syncing with Cloud Firestore:', err);
@@ -328,15 +380,74 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
   // API Routes
   
   // 1. Get Hall details & add-on options
   app.get('/api/halls', (req, res) => {
     res.json({
-      halls: HALLS_DATA,
+      halls: getEffectiveHalls(),
       addons: ADDON_OPTIONS
+    });
+  });
+
+  // 1b. Update Hall Images (Admin Site Upload / Replace)
+  app.post('/api/halls/:hallId/images', async (req, res) => {
+    const { hallId } = req.params;
+    const { primaryImage, secondaryImages } = req.body;
+
+    const hall = HALLS_DATA.find(h => h.id === hallId);
+    if (!hall) {
+      return res.status(404).json({ error: 'Hall not found' });
+    }
+
+    if (!customHallImagesMap[hallId]) {
+      customHallImagesMap[hallId] = {};
+    }
+
+    if (primaryImage !== undefined) {
+      customHallImagesMap[hallId].primaryImage = primaryImage;
+    }
+    if (secondaryImages !== undefined && Array.isArray(secondaryImages)) {
+      customHallImagesMap[hallId].secondaryImages = secondaryImages;
+    }
+
+    saveHallImages();
+
+    // Sync custom images to Firestore if available
+    try {
+      await setDoc(doc(db, 'hall_images', hallId), customHallImagesMap[hallId]);
+    } catch (e) {
+      console.error('[Firestore] Error saving hall images:', e);
+    }
+
+    console.log(`[ADMIN IMAGE UPDATED] Hall: ${hallId} | Primary updated: ${!!primaryImage} | Secondary count: ${secondaryImages?.length}`);
+
+    res.json({
+      success: true,
+      message: 'Hall images updated successfully!',
+      halls: getEffectiveHalls()
+    });
+  });
+
+  // 1c. Reset Hall Images to Default
+  app.post('/api/halls/:hallId/images/reset', async (req, res) => {
+    const { hallId } = req.params;
+    delete customHallImagesMap[hallId];
+    saveHallImages();
+
+    try {
+      await deleteDoc(doc(db, 'hall_images', hallId));
+    } catch (e) {
+      console.error('[Firestore] Error deleting custom hall images:', e);
+    }
+
+    res.json({
+      success: true,
+      message: 'Hall images reset to defaults!',
+      halls: getEffectiveHalls()
     });
   });
 

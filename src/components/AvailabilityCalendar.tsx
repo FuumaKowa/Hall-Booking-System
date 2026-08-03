@@ -37,39 +37,39 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   };
 
   return (
-    <div id="availability-section" className="my-16 bg-stone-900 border border-stone-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
+    <div id="availability-section" className="my-16 bg-white border border-stone-200 rounded-3xl p-6 sm:p-8 shadow-md">
       
       {/* Calendar Header */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
         <div>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/80 border border-amber-800/60 text-amber-300 text-xs font-semibold uppercase tracking-wider mb-2">
-            <CalendarIcon className="w-3.5 h-3.5" /> Live Availability Calendar
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold uppercase tracking-wider mb-2">
+            <CalendarIcon className="w-3.5 h-3.5 text-emerald-700" /> Live Availability Calendar
           </span>
-          <h2 className="font-serif text-2xl sm:text-3xl font-bold text-white">
+          <h2 className="font-serif text-2xl sm:text-3xl font-bold text-stone-900">
             Check Reserved & Open Dates
           </h2>
-          <p className="text-xs text-stone-300 mt-1">
+          <p className="text-xs text-stone-600 mt-1">
             Click on any date to immediately reserve either Hall A or Hall B.
           </p>
         </div>
 
         {/* Month Switcher Controls */}
-        <div className="flex items-center space-x-3 bg-stone-950 p-1.5 rounded-xl border border-stone-800">
+        <div className="flex items-center space-x-3 bg-stone-50 p-1.5 rounded-xl border border-stone-200">
           <button 
             onClick={handlePrevMonth}
-            className="p-2 rounded-lg bg-stone-900 hover:bg-stone-800 text-stone-300 transition-colors"
+            className="p-2 rounded-lg bg-white hover:bg-stone-200 text-stone-700 transition-colors shadow-xs"
             title="Previous Month"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           
-          <span className="font-serif font-bold text-stone-200 text-sm px-3 min-w-[130px] text-center">
+          <span className="font-serif font-bold text-stone-900 text-sm px-3 min-w-[130px] text-center">
             {monthNames[month]} {year}
           </span>
 
           <button 
             onClick={handleNextMonth}
-            className="p-2 rounded-lg bg-stone-900 hover:bg-stone-800 text-stone-300 transition-colors"
+            className="p-2 rounded-lg bg-white hover:bg-stone-200 text-stone-700 transition-colors shadow-xs"
             title="Next Month"
           >
             <ChevronRight className="w-4 h-4" />
@@ -78,7 +78,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 text-xs text-stone-300 mb-6 pb-4 border-b border-stone-800">
+      <div className="flex flex-wrap items-center gap-4 text-xs text-stone-600 mb-6 pb-4 border-b border-stone-200">
         <div className="flex items-center gap-2">
           <span className="w-3 h-3 rounded-full bg-amber-500"></span>
           <span>Hall A Booked</span>
@@ -88,13 +88,13 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           <span>Hall B Booked</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-stone-800 border border-stone-700"></span>
+          <span className="w-3 h-3 rounded-full bg-stone-100 border border-stone-300"></span>
           <span>Both Halls Available</span>
         </div>
       </div>
 
       {/* Days of week header */}
-      <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold text-stone-400 mb-2">
+      <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold text-stone-500 mb-2">
         <span>SUN</span>
         <span>MON</span>
         <span>TUE</span>
@@ -109,7 +109,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
         
         {/* Blank Padding Days */}
         {Array.from({ length: firstDayIndex }).map((_, i) => (
-          <div key={`blank-${i}`} className="h-24 sm:h-28 rounded-xl bg-stone-950/30 border border-stone-900/50 pointer-events-none opacity-20"></div>
+          <div key={`blank-${i}`} className="h-24 sm:h-28 rounded-xl bg-stone-50 border border-stone-100 pointer-events-none opacity-40"></div>
         ))}
 
         {/* Days of Month */}
@@ -127,14 +127,14 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
             <div
               key={dateString}
               onClick={() => onSelectDateToBook(dateString)}
-              className="group cursor-pointer h-24 sm:h-28 rounded-xl bg-stone-950 border border-stone-800/80 hover:border-amber-500/80 p-2 flex flex-col justify-between transition-colors duration-150 relative overflow-hidden"
+              className="group cursor-pointer h-24 sm:h-28 rounded-xl bg-stone-50 border border-stone-200 hover:border-amber-500 hover:bg-amber-50/40 p-2 flex flex-col justify-between transition-colors duration-150 relative overflow-hidden"
             >
               <div className="flex items-center justify-between">
-                <span className="font-mono text-sm font-bold text-stone-200 group-hover:text-amber-300">
+                <span className="font-mono text-sm font-bold text-stone-800 group-hover:text-amber-700">
                   {dayNum}
                 </span>
 
-                <span className="text-[10px] text-amber-400 opacity-0 group-hover:opacity-100 font-medium transition-opacity">
+                <span className="text-[10px] text-amber-700 font-bold opacity-0 group-hover:opacity-100 transition-opacity">
                   Book +
                 </span>
               </div>
@@ -142,25 +142,25 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
               {/* Status Badges for Halls on this day */}
               <div className="space-y-1">
                 {hasGrandBooked ? (
-                  <div className="text-[10px] px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800/80 font-medium truncate flex items-center gap-1">
+                  <div className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-semibold truncate flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                     <span className="hidden sm:inline">Hall A Booked</span>
                     <span className="sm:hidden">Hall A</span>
                   </div>
                 ) : (
-                  <div className="text-[9px] px-1.5 py-0.5 rounded bg-stone-900 text-stone-500 border border-stone-800/60 truncate">
+                  <div className="text-[9px] px-1.5 py-0.5 rounded bg-white text-stone-500 border border-stone-200 truncate font-medium">
                     Hall A Open
                   </div>
                 )}
 
                 {hasGlasshouseBooked ? (
-                  <div className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/80 font-medium truncate flex items-center gap-1">
+                  <div className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300 font-semibold truncate flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                     <span className="hidden sm:inline">Hall B Booked</span>
                     <span className="sm:hidden">Hall B</span>
                   </div>
                 ) : (
-                  <div className="text-[9px] px-1.5 py-0.5 rounded bg-stone-900 text-stone-500 border border-stone-800/60 truncate">
+                  <div className="text-[9px] px-1.5 py-0.5 rounded bg-white text-stone-500 border border-stone-200 truncate font-medium">
                     Hall B Open
                   </div>
                 )}

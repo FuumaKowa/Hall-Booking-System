@@ -15,7 +15,8 @@ import {
   Sparkles,
   Receipt,
   CheckCircle2,
-  Download
+  Download,
+  MessageCircle
 } from 'lucide-react';
 import { BookingRequest } from '../types';
 import { ADDON_OPTIONS } from '../data/hallsData';
@@ -103,10 +104,9 @@ export const BookingTicketModal: React.FC<BookingTicketModalProps> = ({ booking,
                 </div>
 
                 <div class="field-group full-width">
-                  <div class="field-title">Schedule & Operating Hours</div>
+                  <div class="field-title">Schedule & Timing</div>
                   <div class="value"><strong>Event Date:</strong> ${booking.eventDate}</div>
                   <div class="value"><strong>Reserved Timing:</strong> ${booking.startTime} - ${booking.endTime} (${booking.durationHours} Total Hours)</div>
-                  <div class="value"><strong>Hours Breakdown:</strong> ${hoursBreakdown.standardHours} hrs Standard (9am-6pm) ${hoursBreakdown.overtimeHours > 0 ? `+ ${hoursBreakdown.overtimeHours} hrs Overtime/Extra` : '(No Overtime)'}</div>
                 </div>
 
                 ${addonNames.length > 0 ? `
@@ -124,7 +124,7 @@ export const BookingTicketModal: React.FC<BookingTicketModalProps> = ({ booking,
               </div>
 
               <div class="footer">
-                Nilai Harta Consultant Sdn Bhd • Commercial Tower • Tel: +60 3-8000 4255<br>
+                I-Madina Event Space • Tel: +60 3-8000 4255<br>
                 Please present this Reference ID upon arrival or for booking inquiries.
               </div>
             </div>
@@ -147,26 +147,26 @@ export const BookingTicketModal: React.FC<BookingTicketModalProps> = ({ booking,
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-stone-900/50 backdrop-blur-xs overflow-y-auto">
       <div 
         id="printable-ticket"
-        className="relative w-full max-w-2xl bg-stone-900 border border-amber-500/30 rounded-3xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col my-auto"
+        className="relative w-full max-w-2xl bg-white border border-stone-200 rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col my-auto"
       >
         {/* Decorative Top Accent Bar */}
         <div className="h-2.5 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 shrink-0" />
 
-        {/* Header Actions (Clean, uncluttered top bar with title & close button inside box) */}
-        <div className="p-4 sm:px-6 sm:py-4 bg-stone-950 border-b border-stone-800 flex items-center justify-between gap-3 shrink-0 print:hidden">
+        {/* Header Actions */}
+        <div className="p-4 sm:px-6 sm:py-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between gap-3 shrink-0 print:hidden">
           <div className="flex items-center space-x-2">
-            <Receipt className="w-5 h-5 text-amber-400 shrink-0" />
-            <h2 className="font-serif font-bold text-white text-base sm:text-lg truncate">
+            <Receipt className="w-5 h-5 text-amber-600 shrink-0" />
+            <h2 className="font-serif font-bold text-stone-900 text-base sm:text-lg truncate">
               Official Venue Reservation Ticket
             </h2>
           </div>
 
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white flex items-center justify-center transition-colors shrink-0 border border-stone-700"
+            className="w-9 h-9 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 flex items-center justify-center transition-colors shrink-0 border border-stone-200"
             title="Close Ticket"
           >
             <X className="w-5 h-5" />
@@ -174,47 +174,47 @@ export const BookingTicketModal: React.FC<BookingTicketModalProps> = ({ booking,
         </div>
 
         {/* Ticket Content Scrollable Area */}
-        <div className="p-5 sm:p-7 space-y-5 bg-stone-900 text-stone-100 overflow-y-auto flex-1">
+        <div className="p-5 sm:p-7 space-y-5 bg-white text-stone-800 overflow-y-auto flex-1">
           
           {/* Company Branding & Ticket Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-5 border-b border-stone-800 gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-5 border-b border-stone-200 gap-4">
             <div className="flex items-center space-x-3">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center text-stone-950 font-bold shadow-md shrink-0">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center text-stone-950 font-bold shadow-xs shrink-0">
                 <Building2 className="w-5 h-5 stroke-[2.2]" />
               </div>
               <div>
-                <h3 className="font-serif text-lg sm:text-xl font-bold text-white tracking-tight">
-                  NILAI HARTA CONSULTANT
+                <h3 className="font-serif text-lg sm:text-xl font-bold text-stone-900 tracking-tight">
+                  I-MADINA EVENT SPACE
                 </h3>
-                <p className="text-[11px] text-amber-400 font-semibold uppercase tracking-wider">
-                  Sdn Bhd • Venue Management
+                <p className="text-[11px] text-amber-800 font-semibold uppercase tracking-wider">
+                  Venue Management • Official Pass
                 </p>
-                <p className="text-[10px] text-stone-400 mt-0.5">
-                  Commercial Tower • Tel: +60 3-8000 4255
+                <p className="text-[10px] text-stone-500 mt-0.5">
+                  Commercial Hall • Tel: +60 3-8000 4255
                 </p>
               </div>
             </div>
 
             {/* Status Stamp */}
             <div className="flex flex-col items-start sm:items-end">
-              <span className="text-[10px] uppercase font-semibold text-stone-400 tracking-wider">
+              <span className="text-[10px] uppercase font-semibold text-stone-500 tracking-wider">
                 Booking Status
               </span>
               <div className="mt-1">
                 {isConfirmed && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-700 text-xs font-bold uppercase tracking-wider">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold uppercase tracking-wider">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                     Confirmed & Approved
                   </span>
                 )}
                 {isPending && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950 text-amber-400 border border-amber-700 text-xs font-bold uppercase tracking-wider">
-                    <Clock className="w-3.5 h-3.5" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold uppercase tracking-wider">
+                    <Clock className="w-3.5 h-3.5 text-amber-600" />
                     Pending Manager Review
                   </span>
                 )}
                 {isDeclined && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-950 text-red-400 border border-red-700 text-xs font-bold uppercase tracking-wider">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-100 text-red-800 border border-red-300 text-xs font-bold uppercase tracking-wider">
                     Declined
                   </span>
                 )}
@@ -222,28 +222,28 @@ export const BookingTicketModal: React.FC<BookingTicketModalProps> = ({ booking,
             </div>
           </div>
 
-          {/* Clean Ticket ID Banner (No barcode) */}
-          <div className="p-4 rounded-2xl bg-stone-950 border border-amber-500/40 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+          {/* Clean Ticket ID Banner */}
+          <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-300 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
             <div className="space-y-1">
-              <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider block">
+              <span className="text-[10px] text-amber-800 font-bold uppercase tracking-wider block">
                 Official Booking & Admin Reference Ticket ID
               </span>
               <div className="flex items-center justify-center sm:justify-start space-x-2">
-                <span className="font-mono text-2xl sm:text-3xl font-black text-white tracking-wider">
+                <span className="font-mono text-2xl sm:text-3xl font-black text-stone-900 tracking-wider">
                   {booking.referenceNumber}
                 </span>
                 <button
                   onClick={handleCopyRef}
-                  className="p-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-amber-400 transition-colors print:hidden"
+                  className="p-1.5 rounded-lg bg-white hover:bg-amber-100 text-amber-700 transition-colors border border-amber-200 print:hidden"
                   title="Copy Reference ID"
                 >
-                  {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                 </button>
               </div>
-              {copied && <p className="text-[10px] text-emerald-400 font-semibold print:hidden">Copied to clipboard!</p>}
+              {copied && <p className="text-[10px] text-emerald-700 font-semibold print:hidden">Copied to clipboard!</p>}
             </div>
 
-            <div className="px-3 py-1.5 rounded-xl bg-amber-950/40 border border-amber-800/50 text-[11px] text-amber-300 font-medium">
+            <div className="px-3 py-1.5 rounded-xl bg-amber-100 border border-amber-300 text-[11px] text-amber-900 font-bold">
               Verified Digital Pass
             </div>
           </div>
@@ -252,72 +252,72 @@ export const BookingTicketModal: React.FC<BookingTicketModalProps> = ({ booking,
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
             
             {/* Box 1: Customer Info */}
-            <div className="p-3.5 rounded-2xl bg-stone-950/60 border border-stone-800 space-y-2">
-              <span className="text-[10px] font-bold uppercase text-amber-400 tracking-wider block border-b border-stone-800 pb-1">
+            <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200 space-y-2">
+              <span className="text-[10px] font-bold uppercase text-amber-800 tracking-wider block border-b border-stone-200 pb-1">
                 Customer Information
               </span>
-              <div className="space-y-1 text-stone-300">
-                <p className="font-bold text-white text-sm">{booking.customerName}</p>
+              <div className="space-y-1 text-stone-700">
+                <p className="font-bold text-stone-900 text-sm">{booking.customerName}</p>
                 <p className="flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                  <Mail className="w-3.5 h-3.5 text-stone-500 shrink-0" />
                   <span>{booking.customerEmail}</span>
                 </p>
                 <p className="flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                  <Phone className="w-3.5 h-3.5 text-stone-500 shrink-0" />
                   <span>{booking.customerPhone}</span>
                 </p>
               </div>
             </div>
 
             {/* Box 2: Hall & Event Info */}
-            <div className="p-3.5 rounded-2xl bg-stone-950/60 border border-stone-800 space-y-2">
-              <span className="text-[10px] font-bold uppercase text-amber-400 tracking-wider block border-b border-stone-800 pb-1">
+            <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200 space-y-2">
+              <span className="text-[10px] font-bold uppercase text-amber-800 tracking-wider block border-b border-stone-200 pb-1">
                 Venue & Occasion
               </span>
-              <div className="space-y-1 text-stone-300">
-                <p className="font-bold text-amber-300 text-sm flex items-center gap-1">
-                  <MapPin className="w-4 h-4 text-amber-400" />
+              <div className="space-y-1 text-stone-700">
+                <p className="font-bold text-amber-900 text-sm flex items-center gap-1">
+                  <MapPin className="w-4 h-4 text-amber-600" />
                   {booking.hallName}
                 </p>
-                <p className="text-stone-200">
+                <p className="text-stone-800">
                   Occasion: <strong>{booking.eventType}</strong>
                 </p>
-                <p className="flex items-center gap-1 text-stone-300">
-                  <Users className="w-3.5 h-3.5 text-stone-400" />
+                <p className="flex items-center gap-1 text-stone-700">
+                  <Users className="w-3.5 h-3.5 text-stone-500" />
                   Expected Guests: <strong>{booking.guestCount} Pax</strong>
                 </p>
               </div>
             </div>
 
             {/* Box 3: Schedule & Duration */}
-            <div className="p-3.5 rounded-2xl bg-stone-950/60 border border-stone-800 space-y-2 sm:col-span-2">
-              <span className="text-[10px] font-bold uppercase text-amber-400 tracking-wider block border-b border-stone-800 pb-1">
+            <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200 space-y-2 sm:col-span-2">
+              <span className="text-[10px] font-bold uppercase text-amber-800 tracking-wider block border-b border-stone-200 pb-1">
                 Reservation Schedule
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="flex items-center space-x-2">
-                  <Calendar className="w-4 h-4 text-amber-400 shrink-0" />
+                  <Calendar className="w-4 h-4 text-amber-600 shrink-0" />
                   <div>
-                    <span className="text-[10px] text-stone-400 uppercase block">Event Date</span>
-                    <strong className="text-white text-xs">{booking.eventDate}</strong>
+                    <span className="text-[10px] text-stone-500 uppercase block font-semibold">Event Date</span>
+                    <strong className="text-stone-900 text-xs">{booking.eventDate}</strong>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+                  <Clock className="w-4 h-4 text-amber-600 shrink-0" />
                   <div>
-                    <span className="text-[10px] text-stone-400 uppercase block">Time Slot Package</span>
-                    <strong className="text-amber-300 text-xs uppercase">{booking.timeSlot}</strong>
+                    <span className="text-[10px] text-stone-500 uppercase block font-semibold">Time Slot Package</span>
+                    <strong className="text-amber-800 text-xs uppercase">{booking.timeSlot}</strong>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                  <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
                   <div>
-                    <span className="text-[10px] text-stone-400 uppercase block">Reserved Timing</span>
-                    <strong className="text-white text-xs block">{booking.startTime} - {booking.endTime} ({booking.durationHours} hrs)</strong>
-                    <span className="text-[10px] text-amber-300">
-                      {hoursBreakdown.standardHours}h Standard (9am-6pm) {hoursBreakdown.overtimeHours > 0 ? `+ ${hoursBreakdown.overtimeHours}h Overtime` : ''}
+                    <span className="text-[10px] text-stone-500 uppercase block font-semibold">Reserved Timing</span>
+                    <strong className="text-stone-900 text-xs block">{booking.startTime} - {booking.endTime} ({booking.durationHours} hrs)</strong>
+                    <span className="text-[10px] text-amber-800 font-medium">
+                      Package: {booking.timeSlot === 'fullday' ? 'Full Day (09:00 - 18:00)' : booking.timeSlot === 'morning' ? 'Morning (09:00 - 13:00)' : 'Afternoon (14:00 - 18:00)'}
                     </span>
                   </div>
                 </div>
@@ -326,21 +326,21 @@ export const BookingTicketModal: React.FC<BookingTicketModalProps> = ({ booking,
 
             {/* Box 4: Addons & Special Requests */}
             {(addonNames.length > 0 || booking.specialRequests) && (
-              <div className="p-3.5 rounded-2xl bg-stone-950/60 border border-stone-800 space-y-2 sm:col-span-2">
-                <span className="text-[10px] font-bold uppercase text-amber-400 tracking-wider block border-b border-stone-800 pb-1">
+              <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200 space-y-2 sm:col-span-2">
+                <span className="text-[10px] font-bold uppercase text-amber-800 tracking-wider block border-b border-stone-200 pb-1">
                   Selected Add-ons & Requests
                 </span>
                 {addonNames.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {addonNames.map((name, i) => (
-                      <span key={i} className="px-2.5 py-1 rounded-lg bg-stone-800 text-stone-200 text-[11px] font-medium border border-stone-700">
+                      <span key={i} className="px-2.5 py-1 rounded-lg bg-white text-stone-800 text-[11px] font-medium border border-stone-200">
                         ✓ {name}
                       </span>
                     ))}
                   </div>
                 )}
                 {booking.specialRequests && (
-                  <p className="text-stone-300 text-[11px] italic bg-stone-900/80 p-2.5 rounded-xl border border-stone-800 mt-2">
+                  <p className="text-stone-700 text-[11px] italic bg-white p-2.5 rounded-xl border border-stone-200 mt-2">
                     "{booking.specialRequests}"
                   </p>
                 )}
@@ -348,21 +348,21 @@ export const BookingTicketModal: React.FC<BookingTicketModalProps> = ({ booking,
             )}
 
             {/* Box 5: Pricing & Payment Summary */}
-            <div className="p-3.5 rounded-2xl bg-amber-950/30 border border-amber-900/60 space-y-3 sm:col-span-2">
-              <span className="text-[10px] font-bold uppercase text-amber-400 tracking-wider block border-b border-amber-900/40 pb-1 flex items-center justify-between">
+            <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 space-y-3 sm:col-span-2">
+              <span className="text-[10px] font-bold uppercase text-amber-800 tracking-wider block border-b border-amber-200 pb-1 flex items-center justify-between">
                 <span>Financial Summary & Payment Status</span>
                 {booking.paymentStatus === 'fully_paid' && (
-                  <span className="bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded text-[10px] uppercase font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Payment Confirmed (Paid in Full)
+                  <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded text-[10px] uppercase font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Payment Confirmed (Paid in Full)
                   </span>
                 )}
                 {booking.paymentStatus === 'deposit_paid' && (
-                  <span className="bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded text-[10px] uppercase font-bold flex items-center gap-1">
-                    <Receipt className="w-3 h-3 text-amber-400" /> Deposit Payment Confirmed
+                  <span className="bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded text-[10px] uppercase font-bold flex items-center gap-1">
+                    <Receipt className="w-3 h-3 text-amber-700" /> Deposit Payment Confirmed
                   </span>
                 )}
                 {(!booking.paymentStatus || booking.paymentStatus === 'unpaid') && (
-                  <span className="bg-stone-800 text-stone-400 border border-stone-700 px-2 py-0.5 rounded text-[10px] uppercase font-bold">
+                  <span className="bg-stone-100 text-stone-600 border border-stone-300 px-2 py-0.5 rounded text-[10px] uppercase font-bold">
                     Payment Unpaid
                   </span>
                 )}
@@ -370,28 +370,28 @@ export const BookingTicketModal: React.FC<BookingTicketModalProps> = ({ booking,
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-center">
                 <div>
-                  <span className="text-[10px] text-stone-400 uppercase block">Estimated Total</span>
-                  <span className="font-mono text-lg font-bold text-amber-300">RM {booking.estimatedTotal.toLocaleString()}</span>
+                  <span className="text-[10px] text-stone-500 uppercase block font-semibold">Estimated Total</span>
+                  <span className="font-mono text-lg font-bold text-amber-900">RM {booking.estimatedTotal.toLocaleString()}</span>
                 </div>
 
                 <div>
-                  <span className="text-[10px] text-stone-400 uppercase block">Security Deposit</span>
-                  <span className="font-mono text-sm font-bold text-emerald-400">RM {booking.depositAmount.toLocaleString()}</span>
+                  <span className="text-[10px] text-stone-500 uppercase block font-semibold">Security Deposit</span>
+                  <span className="font-mono text-sm font-bold text-emerald-700">RM {booking.depositAmount.toLocaleString()}</span>
                 </div>
 
                 <div>
-                  <span className="text-[10px] text-stone-400 uppercase block">Amount Received</span>
-                  <span className="font-mono text-sm font-bold text-stone-100">
+                  <span className="text-[10px] text-stone-500 uppercase block font-semibold">Amount Received</span>
+                  <span className="font-mono text-sm font-bold text-stone-900">
                     RM {(booking.paidAmount || 0).toLocaleString()}
                   </span>
                 </div>
 
                 <div>
-                  <span className="text-[10px] text-stone-400 uppercase block">Receipt Ref / Method</span>
-                  <span className="font-mono text-xs font-bold text-amber-400 block truncate" title={booking.paymentReceiptRef || 'Pending'}>
+                  <span className="text-[10px] text-stone-500 uppercase block font-semibold">Receipt Ref / Method</span>
+                  <span className="font-mono text-xs font-bold text-amber-800 block truncate" title={booking.paymentReceiptRef || 'Pending'}>
                     {booking.paymentReceiptRef || 'N/A'}
                   </span>
-                  <span className="text-[10px] text-stone-400">{booking.paymentMethod || 'Unconfirmed'}</span>
+                  <span className="text-[10px] text-stone-500 font-medium">{booking.paymentMethod || 'Unconfirmed'}</span>
                 </div>
               </div>
             </div>
@@ -399,36 +399,56 @@ export const BookingTicketModal: React.FC<BookingTicketModalProps> = ({ booking,
           </div>
 
           {/* Admin & Security Footnote */}
-          <div className="pt-3 border-t border-stone-800 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-stone-400">
+          <div className="pt-3 border-t border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-stone-500">
             <div className="flex items-center space-x-2">
-              <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+              <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
               <span>
-                Verified Hall Pass for <strong>Nilai Harta Consultant Sdn Bhd</strong>
+                Verified Hall Pass for <strong>I-Madina Event Space</strong>
               </span>
             </div>
-            <div className="font-mono text-[10px] text-stone-400">
-              Admin Ref: <strong className="text-amber-300">{booking.referenceNumber}</strong>
+            <div className="font-mono text-[10px] text-stone-500">
+              Admin Ref: <strong className="text-amber-800">{booking.referenceNumber}</strong>
             </div>
           </div>
 
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 bg-stone-950 border-t border-stone-800 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0 print:hidden">
-          <p className="text-[11px] text-stone-400 text-center sm:text-left">
-            Present Ticket ID (Ref: <strong className="text-amber-300">{booking.referenceNumber}</strong>) to management for check-in.
+        <div className="p-4 bg-stone-50 border-t border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0 print:hidden">
+          <p className="text-[11px] text-stone-600 text-center sm:text-left">
+            Present Ticket ID (Ref: <strong className="text-amber-800">{booking.referenceNumber}</strong>) to management for check-in.
           </p>
-          <div className="flex items-center space-x-2 w-full sm:w-auto shrink-0">
+          <div className="flex flex-wrap items-center space-x-2 w-full sm:w-auto shrink-0 justify-end">
+            <a
+              href={`https://wa.me/601119602980?text=${encodeURIComponent(`🏛️ *I-MADINA EVENT SPACE BOOKING TICKET*
+---------------------------------------
+📌 *Ref No:* ${booking.referenceNumber}
+🏢 *Hall:* ${booking.hallName}
+👤 *Name:* ${booking.customerName}
+📞 *Phone:* ${booking.customerPhone}
+📅 *Event Date:* ${booking.eventDate}
+⏰ *Time:* ${booking.startTime} - ${booking.endTime} (${booking.timeSlot.toUpperCase()})
+🎯 *Type:* ${booking.eventType} | 👥 ${booking.guestCount} Pax
+💰 *Estimated Total:* RM ${booking.estimatedTotal.toLocaleString()}
+💳 *Deposit Required:* RM ${booking.depositAmount.toLocaleString()}
+---------------------------------------`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 sm:flex-none flex items-center justify-center space-x-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors shadow-xs"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span>WhatsApp +601119602980</span>
+            </a>
             <button
               onClick={handlePrint}
-              className="flex-1 sm:flex-none flex items-center justify-center space-x-1.5 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs transition-colors shadow-md"
+              className="flex-1 sm:flex-none flex items-center justify-center space-x-1.5 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold text-xs transition-colors shadow-xs"
             >
               <Printer className="w-4 h-4" />
-              <span>Print / Download Ticket</span>
+              <span>Print Ticket</span>
             </button>
             <button
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-semibold transition-colors border border-stone-700"
+              className="px-4 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold transition-colors border border-stone-200"
             >
               Close
             </button>

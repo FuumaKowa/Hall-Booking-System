@@ -123,6 +123,12 @@ export const HallCard: React.FC<HallCardProps> = ({ hall, onBookHall, onViewFloo
               src={currentImg} 
               alt={`${hall.name} - ${getImageLabel(currentImg, activeImgIndex)}`}
               referrerPolicy="no-referrer"
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (!target.src.endsWith('/images/hall_alpha.jpg') && !target.src.endsWith('/images/hall_b_panoramic.jpg')) {
+                  target.src = hall.id.includes('grand') ? '/images/hall_alpha.jpg' : '/images/hall_b_panoramic.jpg';
+                }
+              }}
               className={`w-full h-full transition-all duration-300 ${
                 fitMode === 'contain' || isPanoramic ? 'object-contain bg-stone-950' : 'object-cover'
               }`}

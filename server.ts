@@ -101,14 +101,32 @@ function saveHallImages() {
 
 loadHallImages();
 
+function sanitizeImageUrl(url?: string): string | undefined {
+  if (!url) return undefined;
+  if (url.includes('Hall Alpha.png') || url.includes('Hall%20Alpha.png')) return '/images/hall_alpha.jpg';
+  if (url.includes('Hall B Panoramic.png') || url.includes('Hall%20B%20Panoramic.png')) return '/images/hall_b_panoramic.jpg';
+  if (url.includes('hall_b_view_one')) return '/images/hall_b_view_one.jpg';
+  if (url.includes('hall_b_view_two')) return '/images/hall_b_view_two.jpg';
+  if (url.includes('surau')) return '/images/surau.jpg';
+  if (url.startsWith('/src/assets/images/')) {
+    return url.replace('/src/assets/images/', '/images/');
+  }
+  return url;
+}
+
 function getEffectiveHalls() {
   return HALLS_DATA.map(hall => {
     const custom = customHallImagesMap[hall.id];
-    if (!custom) return hall;
+    const rawPrimary = custom?.primaryImage || hall.primaryImage;
+    const rawSecondary = custom?.secondaryImages || hall.secondaryImages;
+
+    const primaryImage = sanitizeImageUrl(rawPrimary) || hall.primaryImage;
+    const secondaryImages = (rawSecondary || []).map(s => sanitizeImageUrl(s) || s);
+
     return {
       ...hall,
-      primaryImage: custom.primaryImage || hall.primaryImage,
-      secondaryImages: custom.secondaryImages || hall.secondaryImages
+      primaryImage,
+      secondaryImages
     };
   });
 }

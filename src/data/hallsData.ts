@@ -1,10 +1,10 @@
 import { Hall, AddonOption } from '../types';
 
-const hallAlphaImg = '/src/assets/images/Hall Alpha.png';
-const hallB1Img = '/src/assets/images/hall_b_view_one_1785735363397.jpg';
-const hallB2Img = '/src/assets/images/hall_b_view_two_1785735375099.jpg';
-const hallBPanoramicImg = '/src/assets/images/Hall B Panoramic.png';
-const surauFacilityImg = '/src/assets/images/surau.jpeg';
+const hallAlphaImg = '/images/Hall Alpha.png';
+const hallB1Img = '/images/hall_b_view_one_1785735363397.jpg';
+const hallB2Img = '/images/hall_b_view_two_1785735375099.jpg';
+const hallBPanoramicImg = '/images/Hall B Panoramic.png';
+const surauFacilityImg = '/images/surau.jpeg';
 
 export const HALLS_DATA: Hall[] = [
   {

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   X, Bell, CheckCircle2, Clock, XCircle, Mail, Phone, DollarSign, 
   Trash2, RefreshCw, Filter, ShieldCheck, MailCheck, AlertTriangle, Send, ShieldAlert, Calendar, Check,
-  Receipt, Search, Ticket, Image, Upload, Plus, RotateCcw, Camera
+  Receipt, Search, Ticket, Image, Upload, Plus, RotateCcw, Camera, ChevronLeft, ChevronRight, Star
 } from 'lucide-react';
 import { BookingRequest, NotificationItem, BookingStatus, PaymentStatus, HallId, TimeSlot, Hall } from '../types';
 import { doBookingsOverlap, getHallSlotAvailability } from '../utils/availability';
@@ -110,6 +110,36 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
       await onUpdateHallImages(hall.id, hall.primaryImage, updatedSecondary);
     } catch (err) {
       console.error('Error removing secondary photo:', err);
+    } finally {
+      setUploadingState(null);
+    }
+  };
+
+  const handleMoveSecondaryPhoto = async (hall: Hall, index: number, direction: -1 | 1) => {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= hall.secondaryImages.length) return;
+
+    setUploadingState(`Moving photo ${index + 1}...`);
+    try {
+      const updatedSecondary = [...hall.secondaryImages];
+      [updatedSecondary[index], updatedSecondary[nextIndex]] = [updatedSecondary[nextIndex], updatedSecondary[index]];
+      await onUpdateHallImages(hall.id, hall.primaryImage, updatedSecondary);
+    } catch (err) {
+      console.error('Error reordering secondary photos:', err);
+    } finally {
+      setUploadingState(null);
+    }
+  };
+
+  const handleMakePrimaryPhoto = async (hall: Hall, index: number) => {
+    setUploadingState(`Setting photo ${index + 1} as the cover...`);
+    try {
+      const updatedSecondary = [...hall.secondaryImages];
+      const [newPrimary] = updatedSecondary.splice(index, 1);
+      if (hall.primaryImage) updatedSecondary.unshift(hall.primaryImage);
+      await onUpdateHallImages(hall.id, newPrimary, updatedSecondary);
+    } catch (err) {
+      console.error('Error setting primary photo:', err);
     } finally {
       setUploadingState(null);
     }
@@ -931,7 +961,7 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
                           <span>📸 Secondary Interior Gallery Views ({hall.secondaryImages?.length || 0})</span>
                         </h5>
                         <p className="text-[11px] text-stone-400">
-                          These photos show interior setups, seating arrangements, amenities, and surau facilities on the client site.
+                          These photos appear in this order on the client site. Use the arrows to rearrange them, or set one as the cover.
                         </p>
                       </div>
 
@@ -964,11 +994,11 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
                         const labelText = isView1 ? 'View 1 (Tables & Mics)' : isView2 ? 'View 2 (Lounge & Sofas)' : isSurau ? 'Surau Facility' : `Gallery View ${idx + 1}`;
 
                         return (
-                          <div key={idx} className="p-3 rounded-xl bg-stone-900 border border-stone-800 space-y-3 flex flex-col justify-between">
+                          <div key={`${imgUrl}-${idx}`} className="p-3 rounded-xl bg-stone-900 border border-stone-800 space-y-3 flex flex-col justify-between">
                             <div className="space-y-2">
                               <div className="relative aspect-video rounded-lg overflow-hidden border border-stone-700 bg-black group">
                                 <img 
-                                  src={imgUrl} 
+                                  src={cleanImageUrl(imgUrl, hall.id === 'hall-alpha' ? '/images/hall_alpha2.jpeg' : '/images/hall_b_panoramic.jpeg')}
                                   alt={`${hall.name} View ${idx + 1}`}
                                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
                                 />
@@ -988,6 +1018,35 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
 
                               <div className="text-[11px] font-bold text-stone-300 truncate" title={labelText}>
                                 {labelText}
+                              </div>
+                              <div className="grid grid-cols-3 gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveSecondaryPhoto(hall, idx, -1)}
+                                  disabled={idx === 0 || Boolean(uploadingState)}
+                                  className="flex items-center justify-center gap-1 rounded-lg border border-stone-700 bg-stone-800 px-2 py-1.5 text-[10px] font-bold text-stone-200 transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-35"
+                                  title="Move this photo earlier"
+                                >
+                                  <ChevronLeft className="h-3.5 w-3.5" /> Earlier
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMakePrimaryPhoto(hall, idx)}
+                                  disabled={Boolean(uploadingState)}
+                                  className="flex items-center justify-center gap-1 rounded-lg border border-amber-700/70 bg-amber-950/40 px-2 py-1.5 text-[10px] font-bold text-amber-300 transition-colors hover:bg-amber-900/50 disabled:cursor-not-allowed disabled:opacity-35"
+                                  title="Use this photo as the hall cover"
+                                >
+                                  <Star className="h-3.5 w-3.5" /> Cover
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveSecondaryPhoto(hall, idx, 1)}
+                                  disabled={idx === hall.secondaryImages.length - 1 || Boolean(uploadingState)}
+                                  className="flex items-center justify-center gap-1 rounded-lg border border-stone-700 bg-stone-800 px-2 py-1.5 text-[10px] font-bold text-stone-200 transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-35"
+                                  title="Move this photo later"
+                                >
+                                  Later <ChevronRight className="h-3.5 w-3.5" />
+                                </button>
                               </div>
                             </div>
 

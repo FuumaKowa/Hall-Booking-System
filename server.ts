@@ -193,13 +193,7 @@ function getEffectiveHalls() {
     const rawSecondary = custom?.secondaryImages !== undefined ? custom.secondaryImages : hall.secondaryImages;
 
     const primaryImage = sanitizeImageUrl(rawPrimary) || hall.primaryImage;
-    let secondaryImages = (rawSecondary || []).map(s => sanitizeImageUrl(s) || s);
-
-    if (hall.id === 'hall-alpha') {
-      if (!secondaryImages.some(img => img.includes('hall_alpha2'))) {
-        secondaryImages = ['/images/hall_alpha2.jpeg', ...secondaryImages.filter(img => !img.includes('hall_alpha.jpeg'))];
-      }
-    }
+    const secondaryImages = (rawSecondary || []).map(s => sanitizeImageUrl(s) || s);
 
     return {
       ...hall,

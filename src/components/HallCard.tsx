@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Users, Maximize2, DollarSign, CheckCircle2, Tv, Volume2, 
   Utensils, Sparkles, Car, Sun, Trees, Mic, Lightbulb, Wind, Coffee,
@@ -43,6 +43,10 @@ export const HallCard: React.FC<HallCardProps> = ({ hall, onBookHall, onViewFloo
   const images = Array.from(new Set([rawPrimary, ...rawSecondary].filter(Boolean)));
   const currentImg = images[activeImgIndex] || rawPrimary;
   const isPanoramic = currentImg.toLowerCase().includes('panoramic');
+
+  useEffect(() => {
+    if (activeImgIndex >= images.length) setActiveImgIndex(Math.max(0, images.length - 1));
+  }, [activeImgIndex, images.length]);
 
   const getImageLabel = (url: string, idx: number): string => {
     const lower = url.toLowerCase();

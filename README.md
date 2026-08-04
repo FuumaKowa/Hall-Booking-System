@@ -27,3 +27,10 @@ disabled; all reads and writes go through the server.
 The venue assistant runs locally using built-in hall information and requires no
 Gemini or other AI API key. For shared cross-device data, deploy with Firestore
 enabled (`DISABLE_FIRESTORE=false`) and Google application-default credentials.
+
+## Vercel deployment
+
+Set `MANAGER_PASSWORD`, `DISABLE_FIRESTORE=false`, and the complete service-account
+JSON in `FIREBASE_SERVICE_ACCOUNT_JSON` in Vercel Project Settings > Environment
+Variables. Redeploy after saving them. The `/api/*` rewrite sends API requests to
+the Express Vercel Function while other requests use the Vite frontend.

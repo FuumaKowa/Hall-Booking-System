@@ -3,7 +3,7 @@ import 'dotenv/config';
 import path from 'path';
 import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
-import { initializeApp, getApps, applicationDefault } from 'firebase-admin/app';
+import { initializeApp, getApps, applicationDefault, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { HALLS_DATA, ADDON_OPTIONS } from './src/data/hallsData.js';
 
@@ -18,14 +18,21 @@ try {
   console.error('Failed to load firebase-applet-config.json', e);
 }
 
+const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
+  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON)
+  : undefined;
 const firebaseApp = getApps().length === 0
-  ? initializeApp({ credential: applicationDefault(), projectId: firebaseConfig.projectId })
+  ? initializeApp({
+      credential: serviceAccount ? cert(serviceAccount) : applicationDefault(),
+      projectId: firebaseConfig.projectId
+    })
   : getApps()[0];
 
 const db = firebaseConfig.firestoreDatabaseId 
   ? getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId) 
   : getFirestore(firebaseApp);
 const firestoreEnabled = process.env.DISABLE_FIRESTORE !== 'true';
+const PORT = Number(process.env.PORT) || 3000;
 
 // Small adapters keep the existing modular-style calls while using the trusted
 // Admin SDK, which is not governed by browser Firestore security rules.
@@ -513,10 +520,8 @@ function checkBookingOverlap(
   return r1.s < r2.e && r1.e > r2.s;
 }
 
-async function startServer() {
-  await syncFromFirestore();
+function createApp() {
   const app = express();
-  const PORT = Number(process.env.PORT) || 3000;
 
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ limit: '10mb', extended: true }));
@@ -552,6 +557,7 @@ async function startServer() {
 
   // 1b. Update Hall Images (Admin Site Upload / Replace)
   app.post('/api/halls/:hallId/images', requireManager, async (req, res) => {
+    await syncFromFirestore();
     const { hallId } = req.params;
     const { primaryImage, secondaryImages } = req.body;
 
@@ -597,6 +603,7 @@ async function startServer() {
 
   // 1c. Reset Hall Images to Default
   app.post('/api/halls/:hallId/images/reset', requireManager, async (req, res) => {
+    await syncFromFirestore();
     const { hallId } = req.params;
     delete customHallImagesMap[hallId];
     saveHallImages();
@@ -820,7 +827,8 @@ async function startServer() {
   });
 
   // 4. Update Booking Status (Manager Actions) -> WITH STRICT APPROVAL FAILSAFE
-  app.patch('/api/bookings/:id', requireManager, (req, res) => {
+  app.patch('/api/bookings/:id', requireManager, async (req, res) => {
+    await syncFromFirestore();
     const { id } = req.params;
     const { status } = req.body;
 
@@ -883,7 +891,8 @@ async function startServer() {
   });
 
   // 4b. Record / Confirm Payment for Booking (Admin Site)
-  app.patch('/api/bookings/:id/payment', requireManager, (req, res) => {
+  app.patch('/api/bookings/:id/payment', requireManager, async (req, res) => {
+    await syncFromFirestore();
     const { id } = req.params;
     const { paymentStatus, paymentMethod, paidAmount, paymentReceiptRef, paymentNotes, autoApprove } = req.body;
 
@@ -964,7 +973,8 @@ async function startServer() {
   });
 
   // 5. Get Notifications
-  app.get('/api/notifications', requireManager, (req, res) => {
+  app.get('/api/notifications', requireManager, async (req, res) => {
+    await syncFromFirestore();
     res.json({
       notifications: store.notifications,
       unreadCount: store.notifications.filter(n => !n.read).length
@@ -972,7 +982,8 @@ async function startServer() {
   });
 
   // 6. Mark Notifications Read
-  app.post('/api/notifications/mark-read', requireManager, (req, res) => {
+  app.post('/api/notifications/mark-read', requireManager, async (req, res) => {
+    await syncFromFirestore();
     store.notifications = store.notifications.map(n => ({ ...n, read: true }));
     saveData(store.bookings, store.notifications);
     for (const n of store.notifications) {
@@ -982,7 +993,8 @@ async function startServer() {
   });
 
   // 7. Delete Booking
-  app.delete('/api/bookings/:id', requireManager, (req, res) => {
+  app.delete('/api/bookings/:id', requireManager, async (req, res) => {
+    await syncFromFirestore();
     const { id } = req.params;
     store.bookings = store.bookings.filter(b => b.id !== id);
     store.notifications = store.notifications.filter(n => n.bookingId !== id);
@@ -1013,14 +1025,7 @@ async function startServer() {
     res.json({ reply });
   });
 
-  // Vite middleware in dev mode
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa'
-    });
-    app.use(vite.middlewares);
-  } else {
+  if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
@@ -1028,9 +1033,20 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
-  });
+  return app;
 }
 
-startServer();
+const app = createApp();
+
+if (!process.env.VERCEL) {
+  void (async () => {
+    await syncFromFirestore();
+    if (process.env.NODE_ENV !== 'production') {
+      const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
+      app.use(vite.middlewares);
+    }
+    app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://0.0.0.0:${PORT}`));
+  })();
+}
+
+export default app;

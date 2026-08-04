@@ -3,6 +3,7 @@ import 'dotenv/config';
 import path from 'path';
 import fs from 'fs';
 import { randomUUID } from 'node:crypto';
+import { del, put } from '@vercel/blob';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { HALLS_DATA, ADDON_OPTIONS } from './src/data/hallsData.js';
 import { database, databaseEnabled } from './src/db/client.js';
@@ -119,15 +120,31 @@ async function processAndSaveImage(dataUrl: string, hallId: string, imageType: s
     return dataUrl;
   }
 
-  // Save file locally in public/uploads/ and dist/public/uploads/
+  const matches = dataUrl.match(/^data:image\/([a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (!matches?.[2]) throw new Error('The uploaded image is not a valid image data URL.');
+  const mimeSubtype = matches[1].toLowerCase();
+  const ext = mimeSubtype === 'jpeg' ? 'jpg' : mimeSubtype.replace(/[^a-z0-9]/g, '');
+  const imageBuffer = Buffer.from(matches[2], 'base64');
+  if (imageBuffer.length > 4 * 1024 * 1024) throw new Error('Image exceeds the 4 MB upload limit.');
+
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const blob = await put(`halls/${hallId}/${imageType}.${ext}`, imageBuffer, {
+      access: 'public',
+      addRandomSuffix: true,
+      contentType: `image/${mimeSubtype}`,
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
+    return blob.url;
+  }
+  if (process.env.VERCEL) throw new Error('BLOB_READ_WRITE_TOKEN is not configured for this deployment.');
+
+  // Local-only fallback for development without a Blob token.
   try {
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
-    const matches = dataUrl.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
-    if (matches && matches[2]) {
-      const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+    if (matches[2]) {
       const filename = `${hallId}_${imageType}_${Date.now()}.${ext}`;
       const filePath = path.join(uploadsDir, filename);
       fs.writeFileSync(filePath, Buffer.from(matches[2], 'base64'));
@@ -150,6 +167,23 @@ async function processAndSaveImage(dataUrl: string, hallId: string, imageType: s
   }
 
   return dataUrl;
+}
+
+function isManagedBlobUrl(value?: string): value is string {
+  if (!value?.startsWith('https://')) return false;
+  try { return new URL(value).hostname.endsWith('.blob.vercel-storage.com'); }
+  catch { return false; }
+}
+
+async function deleteManagedBlobUrls(values: Array<string | undefined>) {
+  const urls = [...new Set(values.filter(isManagedBlobUrl))];
+  if (!urls.length || !process.env.BLOB_READ_WRITE_TOKEN) return;
+  try {
+    await del(urls, { token: process.env.BLOB_READ_WRITE_TOKEN });
+  } catch (error) {
+    // Metadata is already consistent; failed cleanup can be retried manually.
+    console.error('Unable to delete superseded Vercel Blob images:', error);
+  }
 }
 
 function getEffectiveHalls() {
@@ -588,6 +622,9 @@ function createApp() {
       return res.status(404).json({ error: 'Hall not found' });
     }
 
+    const previousImages = customHallImagesMap[hallId];
+    const previousUrls = [previousImages?.primaryImage, ...(previousImages?.secondaryImages || [])];
+
     if (!customHallImagesMap[hallId]) {
       customHallImagesMap[hallId] = {};
     }
@@ -606,6 +643,9 @@ function createApp() {
     }
 
     await saveHallImagesToDatabase(hallId);
+    const current = customHallImagesMap[hallId];
+    const currentUrls = new Set([current?.primaryImage, ...(current?.secondaryImages || [])]);
+    await deleteManagedBlobUrls(previousUrls.filter(url => !currentUrls.has(url)));
 
     console.log(`[ADMIN IMAGE UPDATED] Hall: ${hallId} | Primary updated: ${!!primaryImage} | Secondary count: ${secondaryImages?.length}`);
 
@@ -620,8 +660,11 @@ function createApp() {
   app.post('/api/halls/:hallId/images/reset', requireManager, async (req, res) => {
     await syncFromDatabase();
     const { hallId } = req.params;
+    const previous = customHallImagesMap[hallId];
+    const previousUrls = [previous?.primaryImage, ...(previous?.secondaryImages || [])];
     delete customHallImagesMap[hallId];
     await saveHallImagesToDatabase(hallId);
+    await deleteManagedBlobUrls(previousUrls);
 
     res.json({
       success: true,

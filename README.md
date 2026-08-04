@@ -28,6 +28,7 @@ Gemini or other AI API key.
 
 ## Vercel deployment
 
-Set `MANAGER_PASSWORD` and the pooled Neon `DATABASE_URL` in Vercel Project
-Settings > Environment Variables, then redeploy. The `/api/*` rewrite sends API
+Set `MANAGER_PASSWORD` and the pooled Neon `DATABASE_URL`, and connect a public
+Vercel Blob store so `BLOB_READ_WRITE_TOKEN` is available. Neon stores image
+metadata while Blob stores uploaded image files. The `/api/*` rewrite sends API
 requests to the Express Vercel Function while other requests use the Vite frontend.

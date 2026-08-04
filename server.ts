@@ -1,10 +1,11 @@
 import express from 'express';
+import 'dotenv/config';
 import path from 'path';
 import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
-import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc } from 'firebase/firestore';
+import { initializeApp, getApps, applicationDefault } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 import { HALLS_DATA, ADDON_OPTIONS } from './src/data/hallsData.js';
 
 // Load Firebase Config
@@ -18,11 +19,22 @@ try {
   console.error('Failed to load firebase-applet-config.json', e);
 }
 
-const firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const firebaseApp = getApps().length === 0
+  ? initializeApp({ credential: applicationDefault(), projectId: firebaseConfig.projectId })
+  : getApps()[0];
 
 const db = firebaseConfig.firestoreDatabaseId 
   ? getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId) 
   : getFirestore(firebaseApp);
+const firestoreEnabled = process.env.DISABLE_FIRESTORE !== 'true';
+
+// Small adapters keep the existing modular-style calls while using the trusted
+// Admin SDK, which is not governed by browser Firestore security rules.
+const collection = (_database: typeof db, name: string) => db.collection(name);
+const doc = (_database: typeof db, collectionName: string, id: string) => db.collection(collectionName).doc(id);
+const getDocs = (reference: FirebaseFirestore.CollectionReference) => reference.get();
+const setDoc = (reference: FirebaseFirestore.DocumentReference, value: unknown) => reference.set(value as FirebaseFirestore.DocumentData);
+const deleteDoc = (reference: FirebaseFirestore.DocumentReference) => reference.delete();
 
 interface BookingRecord {
   id: string;
@@ -93,7 +105,7 @@ function loadHallImages() {
 
 function saveHallImages() {
   try {
-    fs.writeFileSync(HALL_IMAGES_FILE, JSON.stringify(customHallImagesMap, null, 2), 'utf-8');
+    atomicWriteJson(HALL_IMAGES_FILE, customHallImagesMap);
   } catch (err) {
     console.error('Error saving hall images store:', err);
   }
@@ -327,15 +339,40 @@ function loadData() {
 
 function saveData(bookings: BookingRecord[], notifications: NotificationRecord[]) {
   try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify({ bookings, notifications }, null, 2), 'utf-8');
+    atomicWriteJson(DATA_FILE, { bookings, notifications });
   } catch (err) {
     console.error('Error writing data file:', err);
   }
 }
 
+function atomicWriteJson(filePath: string, value: unknown) {
+  const temporaryPath = `${filePath}.${process.pid}.tmp`;
+  fs.writeFileSync(temporaryPath, JSON.stringify(value, null, 2), 'utf-8');
+  fs.renameSync(temporaryPath, filePath);
+}
+
+function calculateBookingTotal(body: Record<string, unknown>, hall: (typeof HALLS_DATA)[number]): number {
+  const slot = String(body.timeSlot || 'afternoon');
+  const duration = Math.max(1, Math.min(12, Number(body.durationHours) || 1));
+  let total = slot === 'fullday'
+    ? hall.fullDayRate
+    : slot === 'morning' || slot === 'afternoon'
+      ? hall.halfDayRate
+      : hall.pricePerHour * duration;
+
+  const addonIds = Array.isArray(body.selectedAddons) ? body.selectedAddons.map(String) : [];
+  for (const addon of ADDON_OPTIONS.filter(item => addonIds.includes(item.id))) {
+    if (addon.priceUnit === 'per_guest') total += addon.price * Math.max(1, Number(body.guestCount) || 1);
+    else if (addon.priceUnit === 'per_hour') total += addon.price * duration;
+    else total += addon.price;
+  }
+  return Math.round(total * 100) / 100;
+}
+
 let store = loadData();
 
 async function syncFromFirestore() {
+  if (!firestoreEnabled) return;
   try {
     const bookingsSnap = await getDocs(collection(db, 'bookings'));
     const notifsSnap = await getDocs(collection(db, 'notifications'));
@@ -392,6 +429,7 @@ async function syncFromFirestore() {
 }
 
 async function saveBookingToFirestore(booking: BookingRecord) {
+  if (!firestoreEnabled) return;
   try {
     await setDoc(doc(db, 'bookings', booking.id), booking);
   } catch (e) {
@@ -400,6 +438,7 @@ async function saveBookingToFirestore(booking: BookingRecord) {
 }
 
 async function saveNotifToFirestore(notif: NotificationRecord) {
+  if (!firestoreEnabled) return;
   try {
     await setDoc(doc(db, 'notifications', notif.id), notif);
   } catch (e) {
@@ -408,6 +447,7 @@ async function saveNotifToFirestore(notif: NotificationRecord) {
 }
 
 async function deleteBookingFromFirestore(id: string) {
+  if (!firestoreEnabled) return;
   try {
     await deleteDoc(doc(db, 'bookings', id));
   } catch (e) {
@@ -477,10 +517,25 @@ function checkBookingOverlap(
 async function startServer() {
   await syncFromFirestore();
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
-  app.use(express.json({ limit: '50mb' }));
-  app.use(express.urlencoded({ limit: '50mb', extended: true }));
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+  const requireManager: express.RequestHandler = (req, res, next) => {
+    const configuredPassword = process.env.MANAGER_PASSWORD;
+    if (!configuredPassword) {
+      return res.status(503).json({ error: 'Manager access is not configured.' });
+    }
+    if (req.get('x-manager-password') !== configuredPassword) {
+      return res.status(401).json({ error: 'Invalid manager password.' });
+    }
+    next();
+  };
+
+  app.post('/api/manager/login', requireManager, (_req, res) => {
+    res.json({ success: true });
+  });
 
   // Static uploads serving
   app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
@@ -497,7 +552,7 @@ async function startServer() {
   });
 
   // 1b. Update Hall Images (Admin Site Upload / Replace)
-  app.post('/api/halls/:hallId/images', async (req, res) => {
+  app.post('/api/halls/:hallId/images', requireManager, async (req, res) => {
     const { hallId } = req.params;
     const { primaryImage, secondaryImages } = req.body;
 
@@ -527,7 +582,7 @@ async function startServer() {
 
     // Sync custom images to Firestore if available
     try {
-      await setDoc(doc(db, 'hall_images', hallId), customHallImagesMap[hallId]);
+      if (firestoreEnabled) await setDoc(doc(db, 'hall_images', hallId), customHallImagesMap[hallId]);
     } catch (e) {
       console.error('[Firestore] Error saving hall images:', e);
     }
@@ -542,13 +597,13 @@ async function startServer() {
   });
 
   // 1c. Reset Hall Images to Default
-  app.post('/api/halls/:hallId/images/reset', async (req, res) => {
+  app.post('/api/halls/:hallId/images/reset', requireManager, async (req, res) => {
     const { hallId } = req.params;
     delete customHallImagesMap[hallId];
     saveHallImages();
 
     try {
-      await deleteDoc(doc(db, 'hall_images', hallId));
+      if (firestoreEnabled) await deleteDoc(doc(db, 'hall_images', hallId));
     } catch (e) {
       console.error('[Firestore] Error deleting custom hall images:', e);
     }
@@ -563,9 +618,19 @@ async function startServer() {
   // 2. Get Bookings
   app.get('/api/bookings', async (req, res) => {
     await syncFromFirestore();
-    res.json({
-      bookings: store.bookings
-    });
+    const isManager = Boolean(process.env.MANAGER_PASSWORD) && req.get('x-manager-password') === process.env.MANAGER_PASSWORD;
+    const bookings = isManager ? store.bookings : store.bookings.map(b => ({
+      id: b.id,
+      hallId: b.hallId,
+      hallName: b.hallName,
+      eventDate: b.eventDate,
+      timeSlot: b.timeSlot,
+      startTime: b.startTime,
+      endTime: b.endTime,
+      durationHours: b.durationHours,
+      status: b.status
+    }));
+    res.json({ bookings });
   });
 
   // 2b. Failsafe Availability Checker Endpoint
@@ -590,8 +655,8 @@ async function startServer() {
       totalActiveBookings: hallBookings.length,
       confirmedCount: confirmed.length,
       pendingCount: pending.length,
-      confirmedBookings: confirmed,
-      pendingBookings: pending,
+      confirmedBookings: confirmed.map(b => ({ timeSlot: b.timeSlot, startTime: b.startTime, endTime: b.endTime })),
+      pendingBookings: pending.map(b => ({ timeSlot: b.timeSlot, startTime: b.startTime, endTime: b.endTime })),
       isFullyOccupied: confirmed.some(b => b.timeSlot === 'fullday') || confirmed.length >= 3
     });
   });
@@ -604,6 +669,11 @@ async function startServer() {
     if (!body.hallId || !body.customerName || !body.customerEmail || !body.eventDate) {
       return res.status(400).json({ error: 'Missing required booking fields' });
     }
+
+    const hall = HALLS_DATA.find(h => h.id === body.hallId);
+    if (!hall) return res.status(400).json({ error: 'Invalid hall.' });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(body.eventDate)) return res.status(400).json({ error: 'Invalid event date.' });
+    if (!/^\S+@\S+\.\S+$/.test(body.customerEmail)) return res.status(400).json({ error: 'Invalid email address.' });
 
     const candidateBooking = {
       hallId: body.hallId,
@@ -677,14 +747,12 @@ async function startServer() {
     if (existingConflict) {
       return res.status(409).json({
         success: false,
-        error: `DOUBLE-BOOKING FAILSAFE BLOCKED: ${existingConflict.hallName} is ALREADY BOOKED / RESERVED on ${body.eventDate} during this slot for ${existingConflict.customerName} (${existingConflict.referenceNumber}). Please choose another date or time slot package!`,
-        failsafeTriggered: true,
-        conflictingBooking: existingConflict
+        error: `This hall is already reserved on ${body.eventDate} during the selected time. Please choose another date or time slot.`,
+        failsafeTriggered: true
       });
     }
 
-    const hall = HALLS_DATA.find(h => h.id === body.hallId);
-    const hallName = hall ? hall.name : body.hallId;
+    const hallName = hall.name;
 
     const refNum = `BK-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const newBookingId = `b-${Date.now()}`;
@@ -706,8 +774,8 @@ async function startServer() {
       guestCount: Number(body.guestCount) || 50,
       selectedAddons: Array.isArray(body.selectedAddons) ? body.selectedAddons : [],
       specialRequests: body.specialRequests || '',
-      estimatedTotal: Number(body.estimatedTotal) || 0,
-      depositAmount: Number(body.depositAmount) || 0,
+      estimatedTotal: calculateBookingTotal(body, hall),
+      depositAmount: Math.round(calculateBookingTotal(body, hall) * 0.5),
       status: 'pending',
       createdAt: new Date().toISOString(),
       notificationRead: false
@@ -753,9 +821,13 @@ async function startServer() {
   });
 
   // 4. Update Booking Status (Manager Actions) -> WITH STRICT APPROVAL FAILSAFE
-  app.patch('/api/bookings/:id', (req, res) => {
+  app.patch('/api/bookings/:id', requireManager, (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
+
+    if (!['pending', 'confirmed', 'declined', 'completed'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid booking status.' });
+    }
 
     const bookingIndex = store.bookings.findIndex(b => b.id === id);
     if (bookingIndex === -1) {
@@ -812,9 +884,16 @@ async function startServer() {
   });
 
   // 4b. Record / Confirm Payment for Booking (Admin Site)
-  app.patch('/api/bookings/:id/payment', (req, res) => {
+  app.patch('/api/bookings/:id/payment', requireManager, (req, res) => {
     const { id } = req.params;
     const { paymentStatus, paymentMethod, paidAmount, paymentReceiptRef, paymentNotes, autoApprove } = req.body;
+
+    if (!['unpaid', 'deposit_paid', 'fully_paid'].includes(paymentStatus)) {
+      return res.status(400).json({ error: 'Invalid payment status.' });
+    }
+    if (paidAmount !== undefined && (!Number.isFinite(Number(paidAmount)) || Number(paidAmount) < 0)) {
+      return res.status(400).json({ error: 'Invalid payment amount.' });
+    }
 
     const bookingIndex = store.bookings.findIndex(b => b.id === id);
     if (bookingIndex === -1) {
@@ -886,7 +965,7 @@ async function startServer() {
   });
 
   // 5. Get Notifications
-  app.get('/api/notifications', (req, res) => {
+  app.get('/api/notifications', requireManager, (req, res) => {
     res.json({
       notifications: store.notifications,
       unreadCount: store.notifications.filter(n => !n.read).length
@@ -894,7 +973,7 @@ async function startServer() {
   });
 
   // 6. Mark Notifications Read
-  app.post('/api/notifications/mark-read', (req, res) => {
+  app.post('/api/notifications/mark-read', requireManager, (req, res) => {
     store.notifications = store.notifications.map(n => ({ ...n, read: true }));
     saveData(store.bookings, store.notifications);
     for (const n of store.notifications) {
@@ -904,9 +983,10 @@ async function startServer() {
   });
 
   // 7. Delete Booking
-  app.delete('/api/bookings/:id', (req, res) => {
+  app.delete('/api/bookings/:id', requireManager, (req, res) => {
     const { id } = req.params;
     store.bookings = store.bookings.filter(b => b.id !== id);
+    store.notifications = store.notifications.filter(n => n.bookingId !== id);
     saveData(store.bookings, store.notifications);
     deleteBookingFromFirestore(id);
     res.json({ success: true });
@@ -929,13 +1009,13 @@ async function startServer() {
 We offer EXACTLY 2 small, fully-equipped halls available for rental:
 1. Hall A:
    - Capacity: Up to 30 pax (550 sq ft)
-   - Rates: RM 60/hr or RM 450 full-day
+   - Rates: RM 40/hr, RM 149 half-day, or RM 299 full-day
    - Best for: Meetings, Public Talks, Classes & Workshops
    - Key features: Normal Whiteboard, Speaker & Mic prepared, Normal Projector, Air Conditioning, High-Speed Wi-Fi, Pantry with Water Dispenser, Clean Toilets, and Surau (Prayer Room).
 
 2. Hall B:
    - Capacity: Up to 35 pax (650 sq ft)
-   - Rates: RM 75/hr or RM 550 full-day
+   - Rates: RM 40/hr, RM 149 half-day, or RM 299 full-day
    - Best for: Educational Classes, Training Workshops, Lectures, Public Talks & Exams
    - Key features: Projector & 75" Smart TV, Speaker & Mic system, Whiteboards, Air Conditioning, High-Speed Wi-Fi, Pantry with Water Dispenser, Clean Toilets, and Surau Access.
 

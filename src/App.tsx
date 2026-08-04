@@ -22,7 +22,9 @@ import {
   updateBookingStatusInStore, 
   recordBookingPaymentInStore, 
   deleteBookingFromStore, 
-  markNotificationsReadInStore 
+  markNotificationsReadInStore,
+  authenticateManager,
+  managerAuthHeaders
 } from './services/dataService';
 import { Hall, HallId, BookingRequest, NotificationItem, BookingStatus, PaymentStatus } from './types';
 import { Bell } from 'lucide-react';
@@ -84,7 +86,7 @@ export default function App() {
     try {
       const { ok, data } = await safeFetchJson(`/api/halls/${hallId}/images`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...managerAuthHeaders() },
         body: JSON.stringify({ primaryImage, secondaryImages })
       });
       if (ok && data?.halls) {
@@ -103,7 +105,8 @@ export default function App() {
   const handleResetHallImages = async (hallId: string) => {
     try {
       const { ok, data } = await safeFetchJson(`/api/halls/${hallId}/images/reset`, {
-        method: 'POST'
+        method: 'POST',
+        headers: managerAuthHeaders()
       });
       if (ok && data?.halls) {
         setHalls(data.halls);
@@ -123,6 +126,24 @@ export default function App() {
     setBookingHallId(hallId);
     setBookingDate(dateStr);
     setIsBookingModalOpen(true);
+  };
+
+  const handleOpenManagerPortal = async () => {
+    const password = window.prompt('Enter the manager password:');
+    if (!password) return;
+    if (!await authenticateManager(password)) {
+      setToastAlert({ title: 'Manager access denied', message: 'The password was incorrect or manager access is not configured.' });
+      setTimeout(() => setToastAlert(null), 5000);
+      return;
+    }
+    const [managerBookings, notifResult] = await Promise.all([
+      fetchAllBookings(true),
+      fetchAllNotifications()
+    ]);
+    setBookings(managerBookings);
+    setNotifications(notifResult.notifications);
+    setUnreadCount(notifResult.unreadCount);
+    setIsManagerPortalOpen(true);
   };
 
   const handleBookingCreated = (newBooking: BookingRequest, newNotif: NotificationItem) => {
@@ -236,7 +257,7 @@ export default function App() {
       {/* Main Navbar */}
       <Navbar 
         unreadCount={unreadCount}
-        onOpenManagerPortal={() => setIsManagerPortalOpen(true)}
+        onOpenManagerPortal={handleOpenManagerPortal}
         onOpenBookingModal={handleOpenBookingModal}
         onSelectHallScroll={handleSelectHallScroll}
         onOpenTicketLookup={() => setIsTicketLookupOpen(true)}
@@ -278,7 +299,7 @@ export default function App() {
 
       {/* Footer */}
       <Footer 
-        onOpenManagerPortal={() => setIsManagerPortalOpen(true)}
+        onOpenManagerPortal={handleOpenManagerPortal}
         onSelectHallScroll={handleSelectHallScroll}
         onOpenBookingModal={handleOpenBookingModal}
       />
@@ -342,4 +363,3 @@ export default function App() {
     </div>
   );
 }
-

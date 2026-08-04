@@ -63,6 +63,7 @@ const HALL_IMAGES_FILE = path.join(process.cwd(), 'hall_images_store.json');
 interface CustomHallImages {
   primaryImage?: string;
   secondaryImages?: string[];
+  secondaryImageLabels?: string[];
 }
 
 let customHallImagesMap: Record<string, CustomHallImages> = {};
@@ -195,11 +196,15 @@ function getEffectiveHalls() {
 
     const primaryImage = sanitizeImageUrl(rawPrimary) || hall.primaryImage;
     const secondaryImages = (rawSecondary || []).map(s => sanitizeImageUrl(s) || s);
+    const secondaryImageLabels = custom?.secondaryImageLabels !== undefined
+      ? custom.secondaryImageLabels
+      : hall.secondaryImageLabels;
 
     return {
       ...hall,
       primaryImage,
-      secondaryImages
+      secondaryImages,
+      secondaryImageLabels
     };
   });
 }
@@ -617,7 +622,7 @@ function createApp() {
   app.post('/api/halls/:hallId/images', requireManager, async (req, res) => {
     await syncFromDatabase();
     const { hallId } = req.params;
-    const { primaryImage, secondaryImages } = req.body;
+    const { primaryImage, secondaryImages, secondaryImageLabels } = req.body;
 
     const hall = HALLS_DATA.find(h => h.id === hallId);
     if (!hall) {
@@ -642,6 +647,11 @@ function createApp() {
         processedSecondary.push(uploadedSec);
       }
       customHallImagesMap[hallId].secondaryImages = processedSecondary;
+    }
+    if (secondaryImageLabels !== undefined && Array.isArray(secondaryImageLabels)) {
+      customHallImagesMap[hallId].secondaryImageLabels = secondaryImageLabels
+        .slice(0, customHallImagesMap[hallId].secondaryImages?.length || 0)
+        .map(label => String(label).trim().slice(0, 80));
     }
 
     await saveHallImagesToDatabase(hallId);
@@ -737,6 +747,10 @@ function createApp() {
     if (!/^\S+@\S+\.\S+$/.test(body.customerEmail)) return res.status(400).json({ error: 'Invalid email address.' });
     if (body.hallId === 'hall-b' && !['side-a', 'side-b', 'full'].includes(body.hallSection)) {
       return res.status(400).json({ error: 'Please select Side A, Side B, or Full Hall for Hall B.' });
+    }
+    const bookingCapacity = body.hallId === 'hall-b' && body.hallSection !== 'full' ? hall.sideCapacity! : hall.maxCapacity;
+    if (Number(body.guestCount) < hall.minCapacity || Number(body.guestCount) > bookingCapacity) {
+      return res.status(400).json({ error: `Guest count must be between ${hall.minCapacity} and ${bookingCapacity} for this booking area.` });
     }
 
     const candidateBooking = {
@@ -1065,18 +1079,18 @@ function createApp() {
   // 8. Offline venue assistant (no external AI service required)
   app.post('/api/ai-assistant', (req, res) => {
     const query = String(req.body?.userQuery || '').toLowerCase();
-    let reply = 'Alpha Hall costs RM 200 half-day or RM 400 full-day. Hall B costs RM 200/RM 400 for one side, or RM 400/RM 800 for the full hall (half-day/full-day). Select “Book A Hall” to check availability.';
+    let reply = 'Alpha Hall holds up to 53 guests and costs RM 200 half-day or RM 400 full-day. Hall B holds up to 31 guests per side or 80 chairs as a full hall, costing RM 200/RM 400 for one side or RM 400/RM 800 for the full hall (half-day/full-day).';
 
     if (/price|rate|cost|berapa|harga/.test(query)) {
       reply = 'Alpha Hall is RM 200 half-day or RM 400 full-day. Hall B is RM 200 half-day or RM 400 full-day for one side; the full Hall B is RM 400 half-day or RM 800 full-day. Optional equipment is charged separately.';
     } else if (/capacity|people|guest|pax|muat/.test(query)) {
-      reply = 'Alpha Hall accommodates up to 53 guests. Hall B accommodates up to 31 guests. Alpha Hall is the better choice for groups larger than 31.';
+      reply = 'Alpha Hall accommodates up to 53 guests. Hall B accommodates up to 31 guests per side or up to 80 chairs when the full hall is booked.';
     } else if (/facility|equipment|projector|microphone|wifi|surau|toilet/.test(query)) {
       reply = 'The halls include air conditioning, microphones and speakers, presentation equipment, Wi-Fi, nearby toilets, and surau access. Alpha Hall includes a projector and television; Hall B also provides flexible dining and lounge seating.';
     } else if (/available|availability|date|book|reserve/.test(query)) {
       reply = 'Use “Book A Hall” and select your preferred date and time. The system checks existing reservations before accepting the request. Wednesday mornings from 9:00 AM to 1:00 PM are reserved.';
     } else if (/hall b|event|gathering|dining/.test(query)) {
-      reply = 'Hall B is ideal for small gatherings, private meetings, dining setups, and networking events, with capacity for up to 31 guests.';
+      reply = 'Hall B is ideal for gatherings, meetings, dining setups, and networking events. Each side supports up to 31 guests, while the full hall supports up to 80 chairs.';
     } else if (/alpha|seminar|class|training|workshop/.test(query)) {
       reply = 'Alpha Hall is ideal for seminars, classes, workshops, training, and larger meetings, with capacity for up to 53 guests.';
     }

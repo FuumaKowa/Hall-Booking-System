@@ -95,15 +95,16 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
   const isHalfHallB = selectedHallId === 'hall-b' && hallSection !== 'full';
   const selectedHalfDayRate = isHalfHallB ? currentHall.halfHallHalfDayRate! : currentHall.halfDayRate;
   const selectedFullDayRate = isHalfHallB ? currentHall.halfHallFullDayRate! : currentHall.fullDayRate;
+  const selectedMaxCapacity = isHalfHallB ? currentHall.sideCapacity! : currentHall.maxCapacity;
 
   // Adjust default guest count if hall changes
   useEffect(() => {
-    if (guestCount > currentHall.maxCapacity) {
-      setGuestCount(currentHall.maxCapacity);
+    if (guestCount > selectedMaxCapacity) {
+      setGuestCount(selectedMaxCapacity);
     } else if (guestCount < currentHall.minCapacity) {
       setGuestCount(currentHall.minCapacity);
     }
-  }, [selectedHallId]);
+  }, [selectedHallId, hallSection, selectedMaxCapacity]);
 
   const [allHallBookings, setAllHallBookings] = useState<BookingRequest[]>([]);
 
@@ -481,7 +482,7 @@ _Sent via I-Madina Event Space Website_`;
                           <h4 className="font-serif font-bold text-stone-900 text-sm">{hall.name}</h4>
                           {isSelected && <Check className="w-4 h-4 text-amber-600 shrink-0" />}
                         </div>
-                        <span className="text-[10px] text-stone-500 block mt-0.5">Capacity: {hall.minCapacity}-{hall.maxCapacity} Guests</span>
+                        <span className="text-[10px] text-stone-500 block mt-0.5">Capacity: {hall.id === 'hall-b' ? `up to ${hall.sideCapacity} per side / ${hall.maxCapacity} full hall` : `${hall.minCapacity}-${hall.maxCapacity}`} Guests</span>
                         <span className="text-xs text-amber-800 font-bold block mt-1">
                           {hall.id === 'hall-b'
                             ? `One side: RM ${hall.halfHallHalfDayRate} half day • RM ${hall.halfHallFullDayRate} full day`
@@ -635,12 +636,12 @@ _Sent via I-Madina Event Space Website_`;
 
                   <div>
                     <label className="block text-xs font-medium text-stone-700 mb-1">
-                      Guest Count ({currentHall.minCapacity} - {currentHall.maxCapacity})
+                      Guest Count ({currentHall.minCapacity} - {selectedMaxCapacity})
                     </label>
                     <input 
                       type="number"
                       min={currentHall.minCapacity}
-                      max={currentHall.maxCapacity}
+                      max={selectedMaxCapacity}
                       value={guestCount}
                       onChange={e => setGuestCount(Number(e.target.value))}
                       className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-stone-900 text-xs focus:border-amber-500 focus:outline-none font-mono"

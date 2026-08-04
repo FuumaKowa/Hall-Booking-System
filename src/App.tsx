@@ -82,12 +82,12 @@ export default function App() {
     fetchData();
   }, []);
 
-  const handleUpdateHallImages = async (hallId: string, primaryImage?: string, secondaryImages?: string[]) => {
+  const handleUpdateHallImages = async (hallId: string, primaryImage?: string, secondaryImages?: string[], secondaryImageLabels?: string[]) => {
     try {
       const { ok, data } = await safeFetchJson(`/api/halls/${hallId}/images`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...managerAuthHeaders() },
-        body: JSON.stringify({ primaryImage, secondaryImages })
+        body: JSON.stringify({ primaryImage, secondaryImages, secondaryImageLabels })
       });
       if (ok && data?.halls) {
         setHalls(data.halls);

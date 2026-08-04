@@ -50,6 +50,9 @@ export const HallCard: React.FC<HallCardProps> = ({ hall, onBookHall, onViewFloo
 
   const getImageLabel = (url: string, idx: number): string => {
     const lower = url.toLowerCase();
+    const secondaryIndex = rawSecondary.indexOf(url);
+    const customLabel = secondaryIndex >= 0 ? hall.secondaryImageLabels?.[secondaryIndex]?.trim() : '';
+    if (customLabel) return customLabel;
     if (lower.includes('panoramic')) return hall.id === 'hall-b' ? 'Full Hall B • Sides A + B' : 'Panoramic View';
     if (lower.includes('hall_alpha2') || lower.includes('hall alpha 2')) return 'Photo 2';
     if (lower.includes('hall alpha') || lower.includes('hall_alpha')) return 'Alpha Main';
@@ -97,7 +100,7 @@ export const HallCard: React.FC<HallCardProps> = ({ hall, onBookHall, onViewFloo
           </span>
           <span className="text-xs text-stone-700 bg-stone-100 px-2.5 py-1 rounded-full border border-stone-200 flex items-center gap-1 font-medium">
             <Users className="w-3.5 h-3.5 text-stone-600" />
-            {hall.minCapacity} - {hall.maxCapacity} Guests
+            {hall.id === 'hall-b' ? `Up to ${hall.sideCapacity} per side • ${hall.maxCapacity} full hall` : `${hall.minCapacity} - ${hall.maxCapacity} Guests`}
           </span>
         </div>
 

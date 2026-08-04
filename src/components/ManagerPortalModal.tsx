@@ -30,7 +30,7 @@ interface ManagerPortalModalProps {
     }
   ) => void;
   onDeleteBooking: (bookingId: string) => void;
-  onUpdateHallImages?: (hallId: string, primaryImage?: string, secondaryImages?: string[]) => Promise<void>;
+  onUpdateHallImages?: (hallId: string, primaryImage?: string, secondaryImages?: string[], secondaryImageLabels?: string[]) => Promise<void>;
   onResetHallImages?: (hallId: string) => Promise<void>;
 }
 
@@ -44,7 +44,7 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
   onUpdateStatus,
   onUpdatePayment,
   onDeleteBooking,
-  onUpdateHallImages = async (_hallId: string, _primaryImage?: string, _secondaryImages?: string[]) => {},
+  onUpdateHallImages = async (_hallId: string, _primaryImage?: string, _secondaryImages?: string[], _secondaryImageLabels?: string[]) => {},
   onResetHallImages = async (_hallId: string) => {}
 }) => {
   const [activeTab, setActiveTab] = useState<'notifications' | 'bookings' | 'scheduleInspector' | 'photos' | 'emailLog'>('notifications');
@@ -77,7 +77,7 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
       if (dataUrl) {
         const updatedSecondary = [...hall.secondaryImages];
         updatedSecondary[index] = dataUrl;
-        await onUpdateHallImages(hall.id, hall.primaryImage, updatedSecondary);
+        await onUpdateHallImages(hall.id, hall.primaryImage, updatedSecondary, hall.secondaryImageLabels);
       }
     } catch (err) {
       console.error('Error compressing secondary image:', err);
@@ -94,7 +94,8 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
       const dataUrl = await compressImageFile(file);
       if (dataUrl) {
         const updatedSecondary = [...hall.secondaryImages, dataUrl];
-        await onUpdateHallImages(hall.id, hall.primaryImage, updatedSecondary);
+        const updatedLabels = [...(hall.secondaryImageLabels || []), `Gallery View ${updatedSecondary.length}`];
+        await onUpdateHallImages(hall.id, hall.primaryImage, updatedSecondary, updatedLabels);
       }
     } catch (err) {
       console.error('Error compressing added photo:', err);
@@ -107,7 +108,8 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
     setUploadingState(`Deleting photo ${index + 1}...`);
     try {
       const updatedSecondary = hall.secondaryImages.filter((_, idx) => idx !== index);
-      await onUpdateHallImages(hall.id, hall.primaryImage, updatedSecondary);
+      const updatedLabels = hall.secondaryImages.map((_, idx) => hall.secondaryImageLabels?.[idx] || '').filter((_, idx) => idx !== index);
+      await onUpdateHallImages(hall.id, hall.primaryImage, updatedSecondary, updatedLabels);
     } catch (err) {
       console.error('Error removing secondary photo:', err);
     } finally {
@@ -123,7 +125,9 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
     try {
       const updatedSecondary = [...hall.secondaryImages];
       [updatedSecondary[index], updatedSecondary[nextIndex]] = [updatedSecondary[nextIndex], updatedSecondary[index]];
-      await onUpdateHallImages(hall.id, hall.primaryImage, updatedSecondary);
+      const updatedLabels = hall.secondaryImages.map((_, idx) => hall.secondaryImageLabels?.[idx] || '');
+      [updatedLabels[index], updatedLabels[nextIndex]] = [updatedLabels[nextIndex], updatedLabels[index]];
+      await onUpdateHallImages(hall.id, hall.primaryImage, updatedSecondary, updatedLabels);
     } catch (err) {
       console.error('Error reordering secondary photos:', err);
     } finally {
@@ -137,9 +141,25 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
       const updatedSecondary = [...hall.secondaryImages];
       const [newPrimary] = updatedSecondary.splice(index, 1);
       if (hall.primaryImage) updatedSecondary.unshift(hall.primaryImage);
-      await onUpdateHallImages(hall.id, newPrimary, updatedSecondary);
+      const updatedLabels = hall.secondaryImages.map((_, idx) => hall.secondaryImageLabels?.[idx] || '');
+      updatedLabels.splice(index, 1);
+      if (hall.primaryImage) updatedLabels.unshift('Previous Cover Photo');
+      await onUpdateHallImages(hall.id, newPrimary, updatedSecondary, updatedLabels);
     } catch (err) {
       console.error('Error setting primary photo:', err);
+    } finally {
+      setUploadingState(null);
+    }
+  };
+
+  const handleSaveImageLabel = async (hall: Hall, index: number, fallbackLabel: string) => {
+    const inputKey = `label-${hall.id}-${index}`;
+    const updatedLabels = hall.secondaryImages.map((_, idx) => hall.secondaryImageLabels?.[idx] || '');
+    updatedLabels[index] = (urlInput[inputKey] ?? fallbackLabel).trim();
+    setUploadingState(`Saving display name for photo ${index + 1}...`);
+    try {
+      await onUpdateHallImages(hall.id, hall.primaryImage, hall.secondaryImages, updatedLabels);
+      setUrlInput(prev => ({ ...prev, [inputKey]: '' }));
     } finally {
       setUploadingState(null);
     }
@@ -996,7 +1016,8 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
                         const isView2 = imgUrl.toLowerCase().includes('view_two') || imgUrl.toLowerCase().includes('view_2') || imgUrl.toLowerCase().includes('hall_b_2');
                         const isSurau = imgUrl.toLowerCase().includes('surau');
                         
-                        const labelText = isView1 ? 'Side A (Hall View 1)' : isView2 ? 'Side B (Hall View 2)' : isSurau ? 'Surau Facility' : `Gallery View ${idx + 1}`;
+                        const defaultLabel = isView1 ? 'Side A (Hall View 1)' : isView2 ? 'Side B (Hall View 2)' : isSurau ? 'Surau Facility' : `Gallery View ${idx + 1}`;
+                        const labelText = hall.secondaryImageLabels?.[idx]?.trim() || defaultLabel;
 
                         return (
                           <div key={`${imgUrl}-${idx}`} className="p-3 rounded-xl bg-stone-900 border border-stone-800 space-y-3 flex flex-col justify-between">
@@ -1056,6 +1077,27 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
                             </div>
 
                             <div className="space-y-2 pt-2 border-t border-stone-800">
+                              <div>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-stone-400">Display name</label>
+                                <div className="flex gap-1.5">
+                                  <input
+                                    type="text"
+                                    maxLength={80}
+                                    placeholder={labelText}
+                                    value={urlInput[`label-${hall.id}-${idx}`] ?? labelText}
+                                    onChange={(e) => setUrlInput(prev => ({ ...prev, [`label-${hall.id}-${idx}`]: e.target.value }))}
+                                    className="min-w-0 flex-1 rounded-lg border border-stone-700 bg-stone-950 px-2 py-1.5 text-xs text-stone-200 focus:border-amber-500 focus:outline-none"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSaveImageLabel(hall, idx, labelText)}
+                                    disabled={Boolean(uploadingState)}
+                                    className="rounded-lg bg-amber-600 px-2.5 py-1.5 text-[10px] font-bold text-white hover:bg-amber-500 disabled:opacity-40"
+                                  >
+                                    Save
+                                  </button>
+                                </div>
+                              </div>
                               {/* Replace File Button */}
                               <div>
                                 <input 

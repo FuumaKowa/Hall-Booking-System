@@ -43,7 +43,7 @@ export const HallComparisonTable: React.FC<HallComparisonTableProps> = ({ onBook
             <tr>
               <td className="py-3 px-4 font-semibold text-stone-900">Capacity & Seating</td>
               <td className="py-3 px-4 bg-amber-50/50 font-bold text-amber-900">53 Chairs, 13 Tables</td>
-              <td className="py-3 px-4 bg-emerald-50/50 font-bold text-emerald-900">31 Chairs, 7 Round Tables, Sofas & Dining Table</td>
+              <td className="py-3 px-4 bg-emerald-50/50 font-bold text-emerald-900">Up to 31 guests per side / 80 chairs full hall</td>
             </tr>
 
             <tr>

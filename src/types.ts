@@ -7,6 +7,7 @@ export interface Hall {
   tagline: string;
   description: string;
   maxCapacity: number;
+  sideCapacity?: number;
   minCapacity: number;
   pricePerHour: number;
   overtimeRatePerHour: number;
@@ -17,6 +18,7 @@ export interface Hall {
   sizeSqFt: number;
   primaryImage: string;
   secondaryImages: string[];
+  secondaryImageLabels?: string[];
   features: string[];
   amenities: {
     iconName: string;

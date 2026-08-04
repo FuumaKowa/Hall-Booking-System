@@ -55,7 +55,7 @@ export const FloorPlanModal: React.FC<FloorPlanModalProps> = ({ hall, onClose })
               <Users className="w-6 h-6 text-amber-600" />
               <span className="font-bold text-stone-900">MAIN SEATING / CLASSROOM ZONE</span>
               <span className="text-[10px] text-stone-600">
-                {isAlpha ? '53 Chairs & 13 Tables Setup' : '31 Chairs, 7 Round & Dining Tables'}
+                {isAlpha ? '53 Chairs & 13 Tables Setup' : 'Up to 31 Guests Per Side / 80 Chairs Full Hall'}
               </span>
             </div>
 

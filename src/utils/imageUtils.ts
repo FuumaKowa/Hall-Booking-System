@@ -10,7 +10,7 @@ export function cleanImageUrl(url?: string, defaultFallback = '/images/hall_alph
     return url;
   }
 
-  // 2. HTTP/HTTPS URLs (including Firebase Storage URLs)
+  // 2. Remote HTTP/HTTPS image URLs from supported object storage providers
   if (lower.startsWith('http://') || lower.startsWith('https://')) {
     return url;
   }

@@ -544,14 +544,16 @@ async function startServer() {
   });
 
   // 2. Get Bookings
-  app.get('/api/bookings', (req, res) => {
+  app.get('/api/bookings', async (req, res) => {
+    await syncFromFirestore();
     res.json({
       bookings: store.bookings
     });
   });
 
   // 2b. Failsafe Availability Checker Endpoint
-  app.get('/api/availability/check', (req, res) => {
+  app.get('/api/availability/check', async (req, res) => {
+    await syncFromFirestore();
     const { hallId, eventDate } = req.query as { hallId?: string; eventDate?: string };
     
     if (!hallId || !eventDate) {
@@ -578,7 +580,8 @@ async function startServer() {
   });
 
   // 3. Create New Customer Booking -> WITH DOUBLE BOOKING FAILSAFE
-  app.post('/api/bookings', (req, res) => {
+  app.post('/api/bookings', async (req, res) => {
+    await syncFromFirestore();
     const body = req.body;
     
     if (!body.hallId || !body.customerName || !body.customerEmail || !body.eventDate) {
@@ -649,24 +652,19 @@ async function startServer() {
       }
     }
 
-    // FAILSAFE CHECK 1: Is there an existing CONFIRMED booking that overlaps?
-    const confirmedConflict = store.bookings.find(
-      b => b.status === 'confirmed' && checkBookingOverlap(candidateBooking, b)
+    // FAILSAFE CHECK: Is there an existing active (confirmed or pending) booking that overlaps?
+    const existingConflict = store.bookings.find(
+      b => b.status !== 'declined' && checkBookingOverlap(candidateBooking, b)
     );
 
-    if (confirmedConflict) {
+    if (existingConflict) {
       return res.status(409).json({
         success: false,
-        error: `DOUBLE-BOOKING FAILSAFE BLOCKED: ${confirmedConflict.hallName} is ALREADY CONFIRMED & RESERVED on ${body.eventDate} for ${confirmedConflict.customerName} (${confirmedConflict.timeSlot.toUpperCase()} slot). Please choose another date or time slot!`,
+        error: `DOUBLE-BOOKING FAILSAFE BLOCKED: ${existingConflict.hallName} is ALREADY BOOKED / RESERVED on ${body.eventDate} during this slot for ${existingConflict.customerName} (${existingConflict.referenceNumber}). Please choose another date or time slot package!`,
         failsafeTriggered: true,
-        conflictingBooking: confirmedConflict
+        conflictingBooking: existingConflict
       });
     }
-
-    // FAILSAFE CHECK 2: Is there an existing PENDING booking that overlaps?
-    const pendingConflict = store.bookings.find(
-      b => b.status === 'pending' && checkBookingOverlap(candidateBooking, b)
-    );
 
     const hall = HALLS_DATA.find(h => h.id === body.hallId);
     const hallName = hall ? hall.name : body.hallId;
@@ -698,14 +696,9 @@ async function startServer() {
       notificationRead: false
     };
 
-    // Construct Manager Alert Notification with Conflict Warning if applicable
-    const titleText = pendingConflict 
-      ? `🚨 NEW BOOKING ALERT! (⚠️ Conflict Warning: Pending request exists for this slot!)`
-      : `🚨 NEW BOOKING ALERT!`;
-
-    const messageText = pendingConflict
-      ? `New booking submitted by ${newBooking.customerName} for ${newBooking.hallName} on ${newBooking.eventDate}. ⚠️ WARNING: Another pending booking (${pendingConflict.referenceNumber} - ${pendingConflict.customerName}) is also requesting this time slot!`
-      : `New booking submitted by ${newBooking.customerName} for ${newBooking.hallName} on ${newBooking.eventDate}. Estimated revenue: RM ${newBooking.estimatedTotal.toLocaleString()}`;
+    // Construct Manager Alert Notification
+    const titleText = `🚨 NEW BOOKING ALERT!`;
+    const messageText = `New booking submitted by ${newBooking.customerName} for ${newBooking.hallName} on ${newBooking.eventDate}. Estimated revenue: RM ${newBooking.estimatedTotal.toLocaleString()}`;
 
     const newNotification: NotificationRecord = {
       id: `notif-${Date.now()}`,
@@ -732,17 +725,11 @@ async function startServer() {
     console.log('====================================================');
     console.log(`[MANAGER INFORMED] Email sent to: wandaniel554@gmail.com`);
     console.log(`[BOOKING REF]: ${refNum} | Hall: ${hallName} | Date: ${body.eventDate}`);
-    if (pendingConflict) {
-      console.log(`[FAILSAFE WARNING]: Time slot overlaps with pending request ${pendingConflict.referenceNumber}`);
-    }
     console.log('====================================================');
 
     res.status(201).json({
       success: true,
-      message: pendingConflict
-        ? 'Booking request submitted! Note: Another request is currently pending for this slot.'
-        : 'Booking successfully placed! Management has been notified.',
-      hasPendingConflict: !!pendingConflict,
+      message: 'Booking successfully placed! Management has been notified.',
       booking: newBooking,
       notification: newNotification
     });

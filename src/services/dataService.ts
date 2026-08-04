@@ -29,28 +29,41 @@ function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
 }
 
 export async function fetchAllBookings(): Promise<BookingRequest[]> {
-  // 1. Try API
-  const apiRes = await safeFetchJson('/api/bookings');
-  if (apiRes.ok && apiRes.data?.bookings && Array.isArray(apiRes.data.bookings)) {
-    const bookings: BookingRequest[] = apiRes.data.bookings;
-    saveToLocalStorage(LOCAL_STORAGE_BOOKINGS_KEY, bookings);
-    return bookings;
-  }
-
-  // 2. Fallback to direct Firestore
+  // 1. Direct Firestore Fetch (Source of truth)
+  let fsBookings: BookingRequest[] = [];
   try {
     const snap = await getDocs(collection(db, 'bookings'));
     if (!snap.empty) {
-      const fsBookings: BookingRequest[] = [];
       snap.forEach(d => {
         fsBookings.push(d.data() as BookingRequest);
       });
       fsBookings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      saveToLocalStorage(LOCAL_STORAGE_BOOKINGS_KEY, fsBookings);
-      return fsBookings;
     }
   } catch (e) {
     console.warn('Direct Firestore fetch error for bookings:', e);
+  }
+
+  // 2. API Fetch
+  let apiBookings: BookingRequest[] = [];
+  try {
+    const apiRes = await safeFetchJson('/api/bookings');
+    if (apiRes.ok && apiRes.data?.bookings && Array.isArray(apiRes.data.bookings)) {
+      apiBookings = apiRes.data.bookings;
+    }
+  } catch (e) {
+    console.warn('API fetch error for bookings:', e);
+  }
+
+  // Merge Firestore and API bookings by ID (Firestore takes precedence)
+  const map = new Map<string, BookingRequest>();
+  apiBookings.forEach(b => map.set(b.id, b));
+  fsBookings.forEach(b => map.set(b.id, b)); // Firestore overrides
+
+  const combined = Array.from(map.values());
+  if (combined.length > 0) {
+    combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    saveToLocalStorage(LOCAL_STORAGE_BOOKINGS_KEY, combined);
+    return combined;
   }
 
   // 3. Fallback to LocalStorage
@@ -58,29 +71,41 @@ export async function fetchAllBookings(): Promise<BookingRequest[]> {
 }
 
 export async function fetchAllNotifications(): Promise<{ notifications: NotificationItem[]; unreadCount: number }> {
-  // 1. Try API
-  const apiRes = await safeFetchJson('/api/notifications');
-  if (apiRes.ok && apiRes.data?.notifications && Array.isArray(apiRes.data.notifications)) {
-    const notifications: NotificationItem[] = apiRes.data.notifications;
-    const unreadCount = apiRes.data.unreadCount ?? notifications.filter(n => !n.read).length;
-    saveToLocalStorage(LOCAL_STORAGE_NOTIFS_KEY, notifications);
-    return { notifications, unreadCount };
-  }
-
-  // 2. Fallback to direct Firestore
+  // 1. Direct Firestore Fetch
+  let fsNotifs: NotificationItem[] = [];
   try {
     const snap = await getDocs(collection(db, 'notifications'));
     if (!snap.empty) {
-      const fsNotifs: NotificationItem[] = [];
       snap.forEach(d => {
         fsNotifs.push(d.data() as NotificationItem);
       });
       fsNotifs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      saveToLocalStorage(LOCAL_STORAGE_NOTIFS_KEY, fsNotifs);
-      return { notifications: fsNotifs, unreadCount: fsNotifs.filter(n => !n.read).length };
     }
   } catch (e) {
     console.warn('Direct Firestore fetch error for notifications:', e);
+  }
+
+  // 2. API Fetch
+  let apiNotifs: NotificationItem[] = [];
+  try {
+    const apiRes = await safeFetchJson('/api/notifications');
+    if (apiRes.ok && apiRes.data?.notifications && Array.isArray(apiRes.data.notifications)) {
+      apiNotifs = apiRes.data.notifications;
+    }
+  } catch (e) {
+    console.warn('API fetch error for notifications:', e);
+  }
+
+  // Merge
+  const map = new Map<string, NotificationItem>();
+  apiNotifs.forEach(n => map.set(n.id, n));
+  fsNotifs.forEach(n => map.set(n.id, n));
+
+  const combined = Array.from(map.values());
+  if (combined.length > 0) {
+    combined.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    saveToLocalStorage(LOCAL_STORAGE_NOTIFS_KEY, combined);
+    return { notifications: combined, unreadCount: combined.filter(n => !n.read).length };
   }
 
   // 3. Fallback to LocalStorage

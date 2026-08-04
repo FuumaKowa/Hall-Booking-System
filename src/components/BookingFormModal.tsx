@@ -7,7 +7,7 @@ import {
 import { HALLS_DATA, ADDON_OPTIONS } from '../data/hallsData';
 import { cleanImageUrl } from '../utils/imageUtils';
 import { safeFetchJson } from '../utils/apiUtils';
-import { createNewBooking } from '../services/dataService';
+import { createNewBooking, fetchAllBookings } from '../services/dataService';
 import { HallId, TimeSlot, BookingRequest, NotificationItem } from '../types';
 import { doBookingsOverlap, calculateBookingHours, isWednesdayDate, getSameDayRestriction } from '../utils/availability';
 import { BookingTicketModal } from './BookingTicketModal';
@@ -101,68 +101,90 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
     }
   }, [selectedHallId]);
 
-  // Fetch real-time availability whenever hall or date changes
+  const [allHallBookings, setAllHallBookings] = useState<BookingRequest[]>([]);
+
+  // Fetch real-time availability directly from Firestore & API whenever hall or date changes
   useEffect(() => {
     let isMounted = true;
-    const checkAvailability = async () => {
-      if (!selectedHallId || !eventDate) return;
-      setAvailabilityData(prev => ({ ...prev, loading: true }));
-      try {
-        const { ok, data } = await safeFetchJson(`/api/availability/check?hallId=${selectedHallId}&eventDate=${eventDate}`);
-        if (ok && data && isMounted) {
-          setAvailabilityData({
-            confirmedBookings: data.confirmedBookings || [],
-            pendingBookings: data.pendingBookings || [],
-            loading: false
-          });
-        } else if (isMounted) {
-          setAvailabilityData(prev => ({ ...prev, loading: false }));
-        }
-      } catch (err) {
-        console.error('Error checking availability:', err);
-        if (isMounted) setAvailabilityData(prev => ({ ...prev, loading: false }));
-      }
-    };
+    setAvailabilityData(prev => ({ ...prev, loading: true }));
 
-    checkAvailability();
+    fetchAllBookings().then(bookings => {
+      if (isMounted) {
+        setAllHallBookings(bookings);
+        const activeForHallAndDate = bookings.filter(
+          b => b.hallId === selectedHallId && b.eventDate === eventDate && b.status !== 'declined'
+        );
+        setAvailabilityData({
+          confirmedBookings: activeForHallAndDate.filter(b => b.status === 'confirmed'),
+          pendingBookings: activeForHallAndDate.filter(b => b.status === 'pending' || !b.status),
+          loading: false
+        });
+      }
+    }).catch(err => {
+      console.error('Error fetching bookings:', err);
+      if (isMounted) setAvailabilityData(prev => ({ ...prev, loading: false }));
+    });
+
     return () => { isMounted = false; };
   }, [selectedHallId, eventDate]);
 
-  // All bookings store for calendar highlights
-  const [allHallBookings, setAllHallBookings] = useState<BookingRequest[]>([]);
-
-  useEffect(() => {
-    safeFetchJson('/api/bookings')
-      .then(({ ok, data }) => {
-        if (ok && data && data.bookings) setAllHallBookings(data.bookings);
-      })
-      .catch(err => console.error('Error fetching all bookings:', err));
-  }, []);
-
-  // Determine if chosen timeSlot is taken by confirmed or pending using doBookingsOverlap
+  // Helper to determine if chosen timeSlot is taken by an active booking (confirmed or pending)
   const checkSlotOverlap = (targetSlot: TimeSlot) => {
     const isOverlapping = (b: BookingRequest) => {
+      if (b.status === 'declined') return false;
+      if (b.hallId !== selectedHallId) return false;
+      if (b.eventDate !== eventDate) return false;
+
       return doBookingsOverlap(
         {
           hallId: selectedHallId,
           eventDate,
           timeSlot: targetSlot,
-          startTime,
-          durationHours: targetSlot === 'fullday' ? 12 : durationHours
+          startTime: targetSlot === 'morning' ? '09:00' : targetSlot === 'afternoon' ? '14:00' : '09:00',
+          durationHours: targetSlot === 'fullday' ? 9 : 4
         },
         b
       );
     };
 
-    const confirmedMatch = availabilityData.confirmedBookings.find(isOverlapping);
-    const pendingMatch = availabilityData.pendingBookings.find(isOverlapping);
+    const activeBookings = allHallBookings.filter(
+      b => b.hallId === selectedHallId && b.eventDate === eventDate && b.status !== 'declined'
+    );
 
-    return { confirmedMatch, pendingMatch };
+    const confirmedMatch = activeBookings.find(b => b.status === 'confirmed' && isOverlapping(b));
+    const pendingMatch = activeBookings.find(b => (b.status === 'pending' || !b.status) && isOverlapping(b));
+    const anyMatch = activeBookings.find(isOverlapping);
+
+    return { confirmedMatch, pendingMatch, anyMatch };
   };
 
+  const morningConflict = checkSlotOverlap('morning');
+  const afternoonConflict = checkSlotOverlap('afternoon');
+  const fulldayConflict = checkSlotOverlap('fullday');
+
+  const isMorningTaken = !!morningConflict.anyMatch;
+  const isAfternoonTaken = !!afternoonConflict.anyMatch;
+  const isFulldayTaken = !!fulldayConflict.anyMatch || isMorningTaken || isAfternoonTaken;
+
   const currentSlotConflict = checkSlotOverlap(timeSlot);
-  const isSlotConfirmedBlocked = !!currentSlotConflict.confirmedMatch;
-  const isSlotPendingWarning = !!currentSlotConflict.pendingMatch;
+  const isSelectedSlotTaken = !!currentSlotConflict.anyMatch || (isWednesdayDate(eventDate) && (timeSlot === 'morning' || timeSlot === 'fullday'));
+
+  // Auto-select first available slot if currently selected slot is taken
+  useEffect(() => {
+    const isSlotTaken = (slot: TimeSlot) => {
+      if (isWednesdayDate(eventDate) && (slot === 'morning' || slot === 'fullday')) return true;
+      const res = checkSlotOverlap(slot);
+      return !!res.anyMatch;
+    };
+
+    if (isSlotTaken(timeSlot)) {
+      const slots: TimeSlot[] = ['morning', 'afternoon', 'fullday'];
+      const firstAvailable = slots.find(s => !isSlotTaken(s) && dateRestriction.allowedSlots.includes(s));
+      if (firstAvailable) {
+        setTimeSlot(firstAvailable);
+      }
+    }
+  }, [eventDate, selectedHallId, allHallBookings]);
 
   // Price Calculation Logic
   const calculatePricing = () => {
@@ -264,8 +286,8 @@ _Sent via I-Madina Event Space Website_`;
       return;
     }
 
-    if (isSlotConfirmedBlocked) {
-      setErrorMsg(`DOUBLE-BOOKING FAILSAFE ACTIVE: ${currentHall.name} is already confirmed & reserved on ${eventDate} during this slot. Please choose another date or time slot package.`);
+    if (isSelectedSlotTaken) {
+      setErrorMsg(`DOUBLE-BOOKING FAILSAFE ACTIVE: ${currentHall.name} is already booked & reserved on ${eventDate} during this slot. Please choose another date or time slot package.`);
       return;
     }
 
@@ -505,26 +527,41 @@ _Sent via I-Madina Event Space Website_`;
                       disabled={!dateRestriction.canBookSameDay}
                       className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-stone-900 text-xs font-semibold focus:border-amber-500 focus:outline-none disabled:opacity-60 disabled:bg-stone-100 cursor-pointer disabled:cursor-not-allowed"
                     >
-                      <option value="morning" disabled={isWednesdayDate(eventDate) || !dateRestriction.allowedSlots.includes('morning')}>
+                      <option 
+                        value="morning" 
+                        disabled={isWednesdayDate(eventDate) || !dateRestriction.allowedSlots.includes('morning') || isMorningTaken}
+                      >
                         Half Day - Morning (09:00 - 13:00 / 9:00 AM - 1:00 PM) {
                           isWednesdayDate(eventDate) 
                             ? '• 🔒 Reserved Every Wednesday' 
+                            : isMorningTaken
+                            ? `• 🔒 Unavailable (Booked by ${morningConflict.anyMatch?.customerName || 'Customer'})`
                             : !dateRestriction.allowedSlots.includes('morning')
                             ? '• 🔒 Not available for same-day booking'
                             : `• RM ${currentHall.halfDayRate}`
                         }
                       </option>
-                      <option value="afternoon" disabled={!dateRestriction.allowedSlots.includes('afternoon')}>
+                      <option 
+                        value="afternoon" 
+                        disabled={!dateRestriction.allowedSlots.includes('afternoon') || isAfternoonTaken}
+                      >
                         Half Day - Afternoon (14:00 - 18:00 / 2:00 PM - 6:00 PM) {
-                          !dateRestriction.allowedSlots.includes('afternoon')
+                          isAfternoonTaken
+                            ? `• 🔒 Unavailable (Booked by ${afternoonConflict.anyMatch?.customerName || 'Customer'})`
+                            : !dateRestriction.allowedSlots.includes('afternoon')
                             ? (dateRestriction.isToday ? '• 🔒 Same-day booking closed after 10 AM' : '• 🔒 Unavailable')
                             : `• RM ${currentHall.halfDayRate}`
                         }
                       </option>
-                      <option value="fullday" disabled={isWednesdayDate(eventDate) || !dateRestriction.allowedSlots.includes('fullday')}>
+                      <option 
+                        value="fullday" 
+                        disabled={isWednesdayDate(eventDate) || !dateRestriction.allowedSlots.includes('fullday') || isFulldayTaken}
+                      >
                         Full Day Package (09:00 - 18:00 / 9:00 AM - 6:00 PM) {
                           isWednesdayDate(eventDate) 
                             ? '• 🔒 Wednesday Morning Reserved' 
+                            : isFulldayTaken
+                            ? `• 🔒 Unavailable (Slot already booked)`
                             : !dateRestriction.allowedSlots.includes('fullday')
                             ? '• 🔒 Not available for same-day booking'
                             : `• RM ${currentHall.fullDayRate}`
@@ -746,30 +783,32 @@ _Sent via I-Madina Event Space Website_`;
                     const isWed = isWednesdayDate(eventDate);
                     const isWedBlocked = isWed && (st === 'morning' || st === 'fullday');
                     const status = checkSlotOverlap(st);
-                    const isConf = !!status.confirmedMatch || isWedBlocked;
-                    const isPend = !!status.pendingMatch;
+                    const isTaken = !!status.anyMatch || isWedBlocked;
                     const isSelectedSlot = timeSlot === st;
                     const slotLabel = st === 'morning' ? 'Morning (9am - 1pm)' : st === 'afternoon' ? 'Afternoon (2pm - 6pm)' : 'Full Day (9am - 6pm)';
+                    const bookedCustomer = status.anyMatch?.customerName;
 
                     return (
                       <div 
                         key={st}
                         onClick={() => {
-                          if (!isWedBlocked) handleTimeSlotChange(st);
+                          if (!isTaken) handleTimeSlotChange(st);
                         }}
                         className={`p-2.5 rounded-xl border flex flex-col justify-between transition-all ${
-                          isWedBlocked ? 'opacity-85 bg-amber-100 border-amber-300 text-amber-900 cursor-not-allowed' : 'cursor-pointer'
+                          isTaken ? 'opacity-85 bg-red-100 border-red-300 text-red-900 cursor-not-allowed' : 'cursor-pointer hover:border-amber-400'
                         } ${
-                          isSelectedSlot && !isWedBlocked ? 'ring-2 ring-amber-500 font-bold shadow-xs' : ''
+                          isSelectedSlot && !isTaken ? 'ring-2 ring-amber-500 font-bold shadow-xs bg-amber-50/50' : ''
                         } ${
-                          !isWedBlocked && isConf ? 'bg-red-100 border-red-300 text-red-900' :
-                          !isWedBlocked && isPend ? 'bg-amber-100 border-amber-300 text-amber-900' :
-                          !isWedBlocked ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : ''
+                          !isTaken ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : ''
                         }`}
                       >
                         <span className="font-bold text-xs">{slotLabel}</span>
                         <span className="font-medium mt-1">
-                          {isWedBlocked ? '🔒 RESERVED (Wed 9am-1pm)' : isConf ? '🛑 RESERVED' : isPend ? '⚠️ REQUESTED' : '✓ AVAILABLE'}
+                          {isWedBlocked 
+                            ? '🔒 RESERVED (Wed 9am-1pm)' 
+                            : isTaken 
+                            ? `🛑 BOOKED (${bookedCustomer || 'Customer'})` 
+                            : '✓ AVAILABLE'}
                         </span>
                       </div>
                     );
@@ -777,29 +816,16 @@ _Sent via I-Madina Event Space Website_`;
                 </div>
 
                 {/* DOUBLE-BOOKING FAILSAFE BANNER */}
-                {isSlotConfirmedBlocked && (
+                {isSelectedSlotTaken && (
                   <div className="p-3 rounded-xl bg-red-50 border border-red-300 text-red-900 text-xs flex items-start gap-2.5 mt-2">
                     <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
                     <div>
                       <h5 className="font-bold text-red-800">DOUBLE-BOOKING FAILSAFE ACTIVE</h5>
                       <p className="mt-0.5 text-stone-800">
-                        <strong>{currentHall.name}</strong> is <strong>ALREADY CONFIRMED & RESERVED</strong> on <strong>{eventDate}</strong> during the selected slot for <strong>{currentSlotConflict.confirmedMatch?.customerName}</strong> ({currentSlotConflict.confirmedMatch?.referenceNumber}).
+                        <strong>{currentHall.name}</strong> is <strong>ALREADY BOOKED / RESERVED</strong> on <strong>{eventDate}</strong> during this slot for <strong>{currentSlotConflict.anyMatch?.customerName || 'another customer'}</strong> ({currentSlotConflict.anyMatch?.referenceNumber || 'Booked'}).
                       </p>
                       <p className="mt-1 text-[11px] text-red-800 font-semibold">
-                        Please choose a different date or time slot package to proceed.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* PENDING REQUEST WARNING BANNER */}
-                {!isSlotConfirmedBlocked && isSlotPendingWarning && (
-                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-start gap-2.5 mt-2">
-                    <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                    <div>
-                      <h5 className="font-bold text-amber-800">Pending Request Notice</h5>
-                      <p className="mt-0.5 text-stone-700">
-                        Another customer ({currentSlotConflict.pendingMatch?.customerName}) has a pending request for this slot. You may still submit your request, and management will review availability before confirming.
+                        Please choose a different available time slot package or date to proceed.
                       </p>
                     </div>
                   </div>
@@ -951,19 +977,19 @@ _Sent via I-Madina Event Space Website_`;
 
                 <button
                   type="submit"
-                  disabled={isSubmitting || isSlotConfirmedBlocked}
+                  disabled={isSubmitting || isSelectedSlotTaken}
                   className={`w-full sm:w-auto font-bold py-3.5 px-8 rounded-xl text-sm transition-all shadow-md flex items-center justify-center space-x-2 disabled:opacity-50 ${
-                    isSlotConfirmedBlocked 
+                    isSelectedSlotTaken 
                       ? 'bg-stone-200 text-stone-400 cursor-not-allowed border border-stone-300' 
                       : 'bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-stone-950 active:scale-95'
                   }`}
                 >
                 {isSubmitting ? (
                   <span>Notifying Management...</span>
-                ) : isSlotConfirmedBlocked ? (
+                ) : isSelectedSlotTaken ? (
                   <>
                     <AlertCircle className="w-4 h-4 text-red-600" />
-                    <span>Slot Blocked by Failsafe</span>
+                    <span>Slot Blocked (Already Booked)</span>
                   </>
                 ) : (
                   <>

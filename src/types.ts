@@ -1,4 +1,5 @@
 export type HallId = 'hall-alpha' | 'hall-b' | 'hall-grand-horizon' | 'hall-serenade-glasshouse';
+export type HallSection = 'side-a' | 'side-b' | 'full';
 
 export interface Hall {
   id: HallId;
@@ -11,6 +12,8 @@ export interface Hall {
   overtimeRatePerHour: number;
   halfDayRate: number;
   fullDayRate: number;
+  halfHallHalfDayRate?: number;
+  halfHallFullDayRate?: number;
   sizeSqFt: number;
   primaryImage: string;
   secondaryImages: string[];
@@ -50,6 +53,7 @@ export interface BookingRequest {
   referenceNumber: string;
   hallId: HallId;
   hallName: string;
+  hallSection?: HallSection;
   customerName: string;
   customerEmail: string;
   customerPhone: string;

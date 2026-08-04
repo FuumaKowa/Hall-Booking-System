@@ -8,7 +8,7 @@ import { HALLS_DATA, ADDON_OPTIONS } from '../data/hallsData';
 import { cleanImageUrl } from '../utils/imageUtils';
 import { safeFetchJson } from '../utils/apiUtils';
 import { createNewBooking, fetchAllBookings } from '../services/dataService';
-import { HallId, TimeSlot, BookingRequest, NotificationItem } from '../types';
+import { HallId, HallSection, TimeSlot, BookingRequest, NotificationItem } from '../types';
 import { doBookingsOverlap, calculateBookingHours, isWednesdayDate, getSameDayRestriction } from '../utils/availability';
 import { BookingTicketModal } from './BookingTicketModal';
 
@@ -26,6 +26,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
   onBookingCreated
 }) => {
   const [selectedHallId, setSelectedHallId] = useState<HallId>(initialHallId);
+  const [hallSection, setHallSection] = useState<HallSection>('full');
   const [eventType, setEventType] = useState<string>('Corporate Meeting');
   const [eventDate, setEventDate] = useState<string>(() => {
     const now = new Date();
@@ -91,6 +92,9 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
   }, [eventDate]);
 
   const currentHall = HALLS_DATA.find(h => h.id === selectedHallId) || HALLS_DATA[0];
+  const isHalfHallB = selectedHallId === 'hall-b' && hallSection !== 'full';
+  const selectedHalfDayRate = isHalfHallB ? currentHall.halfHallHalfDayRate! : currentHall.halfDayRate;
+  const selectedFullDayRate = isHalfHallB ? currentHall.halfHallFullDayRate! : currentHall.fullDayRate;
 
   // Adjust default guest count if hall changes
   useEffect(() => {
@@ -141,7 +145,8 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
           eventDate,
           timeSlot: targetSlot,
           startTime: targetSlot === 'morning' ? '09:00' : targetSlot === 'afternoon' ? '14:00' : '09:00',
-          durationHours: targetSlot === 'fullday' ? 9 : 4
+          durationHours: targetSlot === 'fullday' ? 9 : 4,
+          hallSection: selectedHallId === 'hall-b' ? hallSection : undefined
         },
         b
       );
@@ -184,16 +189,16 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
         setTimeSlot(firstAvailable);
       }
     }
-  }, [eventDate, selectedHallId, allHallBookings]);
+  }, [eventDate, selectedHallId, hallSection, allHallBookings]);
 
   // Price Calculation Logic
   const calculatePricing = () => {
     let baseHallFee = 0;
 
     if (timeSlot === 'fullday') {
-      baseHallFee = currentHall.fullDayRate;
+      baseHallFee = selectedFullDayRate;
     } else {
-      baseHallFee = currentHall.halfDayRate || 149;
+      baseHallFee = selectedHalfDayRate;
     }
 
     let addonsFee = 0;
@@ -245,6 +250,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
 ---------------------------------------
 📌 *Ref No:* ${booking.referenceNumber}
 🏢 *Hall:* ${booking.hallName}
+📍 *Area:* ${booking.hallSection === 'side-a' ? 'Side A' : booking.hallSection === 'side-b' ? 'Side B' : booking.hallSection === 'full' ? 'Full Hall' : 'Entire Alpha Hall'}
 👤 *Name:* ${booking.customerName}
 📞 *Phone:* ${booking.customerPhone}
 ✉️ *Email:* ${booking.customerEmail}
@@ -296,6 +302,7 @@ _Sent via I-Madina Event Space Website_`;
 
     const payload = {
       hallId: selectedHallId,
+      hallSection: selectedHallId === 'hall-b' ? hallSection : undefined,
       customerName,
       customerEmail,
       customerPhone,
@@ -458,7 +465,10 @@ _Sent via I-Madina Event Space Website_`;
                   return (
                     <div
                       key={hall.id}
-                      onClick={() => setSelectedHallId(hall.id)}
+                      onClick={() => {
+                        setSelectedHallId(hall.id);
+                        if (hall.id !== 'hall-b') setHallSection('full');
+                      }}
                       className={`cursor-pointer p-4 rounded-2xl border transition-all flex items-start space-x-3 ${
                         isSelected 
                           ? 'bg-amber-50 border-amber-500 ring-2 ring-amber-500/20' 
@@ -472,13 +482,42 @@ _Sent via I-Madina Event Space Website_`;
                           {isSelected && <Check className="w-4 h-4 text-amber-600 shrink-0" />}
                         </div>
                         <span className="text-[10px] text-stone-500 block mt-0.5">Capacity: {hall.minCapacity}-{hall.maxCapacity} Guests</span>
-                        <span className="text-xs text-amber-800 font-bold block mt-1">Half Day: RM {hall.halfDayRate} • Full Day: RM {hall.fullDayRate}</span>
+                        <span className="text-xs text-amber-800 font-bold block mt-1">
+                          {hall.id === 'hall-b'
+                            ? `One side: RM ${hall.halfHallHalfDayRate} half day • RM ${hall.halfHallFullDayRate} full day`
+                            : `Half Day: RM ${hall.halfDayRate} • Full Day: RM ${hall.fullDayRate}`}
+                        </span>
                       </div>
                     </div>
                   );
                 })}
               </div>
             </div>
+
+            {selectedHallId === 'hall-b' && (
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-amber-700 mb-2">
+                  2. Select Hall B Area
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {([
+                    ['side-a', 'Side A', 'RM200 half day • RM400 full day'],
+                    ['side-b', 'Side B', 'RM200 half day • RM400 full day'],
+                    ['full', 'Full Hall', 'RM400 half day • RM800 full day']
+                  ] as const).map(([value, label, price]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setHallSection(value)}
+                      className={`rounded-xl border p-3 text-left transition-all ${hallSection === value ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-500/20' : 'border-stone-200 bg-white hover:border-stone-400'}`}
+                    >
+                      <span className="block text-xs font-bold text-stone-900">{label}</span>
+                      <span className="block mt-1 text-[10px] text-stone-600">{price}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Step 2: Date, Time & Guest Count */}
             <div className="space-y-3">
@@ -538,7 +577,7 @@ _Sent via I-Madina Event Space Website_`;
                             ? `• 🔒 Unavailable (Booked by ${morningConflict.anyMatch?.customerName || 'Customer'})`
                             : !dateRestriction.allowedSlots.includes('morning')
                             ? '• 🔒 Not available for same-day booking'
-                            : `• RM ${currentHall.halfDayRate}`
+                            : `• RM ${selectedHalfDayRate}`
                         }
                       </option>
                       <option 
@@ -550,7 +589,7 @@ _Sent via I-Madina Event Space Website_`;
                             ? `• 🔒 Unavailable (Booked by ${afternoonConflict.anyMatch?.customerName || 'Customer'})`
                             : !dateRestriction.allowedSlots.includes('afternoon')
                             ? (dateRestriction.isToday ? '• 🔒 Same-day booking closed after 10 AM' : '• 🔒 Unavailable')
-                            : `• RM ${currentHall.halfDayRate}`
+                            : `• RM ${selectedHalfDayRate}`
                         }
                       </option>
                       <option 
@@ -564,7 +603,7 @@ _Sent via I-Madina Event Space Website_`;
                             ? `• 🔒 Unavailable (Slot already booked)`
                             : !dateRestriction.allowedSlots.includes('fullday')
                             ? '• 🔒 Not available for same-day booking'
-                            : `• RM ${currentHall.fullDayRate}`
+                            : `• RM ${selectedFullDayRate}`
                         }
                       </option>
                     </select>
@@ -935,7 +974,7 @@ _Sent via I-Madina Event Space Website_`;
                       <Clock className="w-3.5 h-3.5 text-amber-600" /> Rental Package & Price Breakdown
                     </span>
                     <span className="text-[10px] text-stone-500 font-mono font-normal">
-                      Standard Rates: Half Day (9am–1pm / 2pm–6pm) RM 149 • Full Day (9am–6pm) RM 299
+                      {selectedHallId === 'hall-b' ? 'Hall B: one side RM200/RM400 • full hall RM400/RM800' : 'Alpha Hall: RM200 half day • RM400 full day'}
                     </span>
                   </div>
 
@@ -943,7 +982,7 @@ _Sent via I-Madina Event Space Website_`;
                     <div className="flex items-center justify-between gap-4">
                       <span>• Selected Package ({timeSlot === 'fullday' ? 'Full Day Rental' : 'Half Day Rental'}):</span>
                       <span className="font-mono font-bold text-stone-900">
-                        RM {timeSlot === 'fullday' ? currentHall.fullDayRate : currentHall.halfDayRate}
+                        RM {baseHallFee}
                       </span>
                     </div>
 

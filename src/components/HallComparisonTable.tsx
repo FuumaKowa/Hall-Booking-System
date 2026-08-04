@@ -52,7 +52,7 @@ export const HallComparisonTable: React.FC<HallComparisonTableProps> = ({ onBook
                 <span className="block text-[10px] text-stone-500 font-normal font-sans">9:00 AM – 1:00 PM or 2:00 PM – 6:00 PM</span>
               </td>
               <td className="py-3 px-4 bg-amber-50/50 font-mono text-amber-700 font-bold">RM {hall1.halfDayRate}</td>
-              <td className="py-3 px-4 bg-emerald-50/50 font-mono text-emerald-700 font-bold">RM {hall2.halfDayRate}</td>
+              <td className="py-3 px-4 bg-emerald-50/50 font-mono text-emerald-700 font-bold">RM {hall2.halfHallHalfDayRate} one side / RM {hall2.halfDayRate} full hall</td>
             </tr>
 
             <tr>
@@ -61,7 +61,7 @@ export const HallComparisonTable: React.FC<HallComparisonTableProps> = ({ onBook
                 <span className="block text-[10px] text-stone-500 font-normal font-sans">9:00 AM – 6:00 PM</span>
               </td>
               <td className="py-3 px-4 bg-amber-50/50 font-mono text-amber-700 font-bold">RM {hall1.fullDayRate}</td>
-              <td className="py-3 px-4 bg-emerald-50/50 font-mono text-emerald-700 font-bold">RM {hall2.fullDayRate}</td>
+              <td className="py-3 px-4 bg-emerald-50/50 font-mono text-emerald-700 font-bold">RM {hall2.halfHallFullDayRate} one side / RM {hall2.fullDayRate} full hall</td>
             </tr>
 
             <tr>

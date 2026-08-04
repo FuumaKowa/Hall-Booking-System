@@ -15,6 +15,7 @@ interface BookingRecord {
   referenceNumber: string;
   hallId: 'hall-alpha' | 'hall-b' | 'hall-grand-horizon' | 'hall-serenade-glasshouse';
   hallName: string;
+  hallSection?: 'side-a' | 'side-b' | 'full';
   customerName: string;
   customerEmail: string;
   customerPhone: string;
@@ -355,10 +356,11 @@ function atomicWriteJson(filePath: string, value: unknown) {
 function calculateBookingTotal(body: Record<string, unknown>, hall: (typeof HALLS_DATA)[number]): number {
   const slot = String(body.timeSlot || 'afternoon');
   const duration = Math.max(1, Math.min(12, Number(body.durationHours) || 1));
+  const isHalfHallB = hall.id === 'hall-b' && (body.hallSection === 'side-a' || body.hallSection === 'side-b');
   let total = slot === 'fullday'
-    ? hall.fullDayRate
+    ? isHalfHallB ? hall.halfHallFullDayRate! : hall.fullDayRate
     : slot === 'morning' || slot === 'afternoon'
-      ? hall.halfDayRate
+      ? isHalfHallB ? hall.halfHallHalfDayRate! : hall.halfDayRate
       : hall.pricePerHour * duration;
 
   const addonIds = Array.isArray(body.selectedAddons) ? body.selectedAddons.map(String) : [];
@@ -514,13 +516,19 @@ function isWednesdayDate(dateStr?: string): boolean {
 
 // Helper function to check if two bookings overlap in time slot/date for the same hall
 function checkBookingOverlap(
-  b1: { hallId: string; eventDate: string; timeSlot: string; startTime?: string; durationHours?: number; id?: string },
-  b2: { hallId: string; eventDate: string; timeSlot: string; startTime?: string; durationHours?: number; id?: string; status: string }
+  b1: { hallId: string; eventDate: string; timeSlot: string; startTime?: string; durationHours?: number; hallSection?: string; id?: string },
+  b2: { hallId: string; eventDate: string; timeSlot: string; startTime?: string; durationHours?: number; hallSection?: string; id?: string; status: string }
 ): boolean {
   if (b2.status === 'declined') return false;
   if (b1.id && b2.id && b1.id === b2.id) return false;
   if (b1.hallId !== b2.hallId) return false;
   if (b1.eventDate !== b2.eventDate) return false;
+
+  if (b1.hallId === 'hall-b') {
+    const section1 = b1.hallSection || 'full';
+    const section2 = b2.hallSection || 'full';
+    if (section1 !== 'full' && section2 !== 'full' && section1 !== section2) return false;
+  }
 
   // Same hall & date: check slot / time overlap
   if (b1.timeSlot === 'fullday' || b2.timeSlot === 'fullday') return true;
@@ -680,6 +688,7 @@ function createApp() {
       startTime: b.startTime,
       endTime: b.endTime,
       durationHours: b.durationHours,
+      hallSection: b.hallSection,
       status: b.status
     }));
     res.json({ bookings });
@@ -726,13 +735,17 @@ function createApp() {
     if (!hall) return res.status(400).json({ error: 'Invalid hall.' });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(body.eventDate)) return res.status(400).json({ error: 'Invalid event date.' });
     if (!/^\S+@\S+\.\S+$/.test(body.customerEmail)) return res.status(400).json({ error: 'Invalid email address.' });
+    if (body.hallId === 'hall-b' && !['side-a', 'side-b', 'full'].includes(body.hallSection)) {
+      return res.status(400).json({ error: 'Please select Side A, Side B, or Full Hall for Hall B.' });
+    }
 
     const candidateBooking = {
       hallId: body.hallId,
       eventDate: body.eventDate,
       timeSlot: body.timeSlot || 'afternoon',
       startTime: body.startTime,
-      durationHours: body.durationHours || 5
+      durationHours: body.durationHours || 5,
+      hallSection: body.hallId === 'hall-b' ? body.hallSection : undefined
     };
 
     // Date & Same-day restriction check
@@ -814,6 +827,7 @@ function createApp() {
       referenceNumber: refNum,
       hallId: body.hallId,
       hallName: hallName,
+      hallSection: body.hallId === 'hall-b' ? body.hallSection : undefined,
       customerName: body.customerName,
       customerEmail: body.customerEmail,
       customerPhone: body.customerPhone || 'N/A',
@@ -821,13 +835,13 @@ function createApp() {
       eventDate: body.eventDate,
       timeSlot: body.timeSlot || 'afternoon',
       startTime: body.startTime || '12:00',
-      endTime: body.endTime || '17:00',
+      endTime: body.endTime || (body.timeSlot === 'morning' ? '13:00' : '18:00'),
       durationHours: body.durationHours || 5,
       guestCount: Number(body.guestCount) || 50,
       selectedAddons: Array.isArray(body.selectedAddons) ? body.selectedAddons : [],
       specialRequests: body.specialRequests || '',
       estimatedTotal: calculateBookingTotal(body, hall),
-      depositAmount: Math.round(calculateBookingTotal(body, hall) * 0.5),
+      depositAmount: Math.round(calculateBookingTotal(body, hall) * 0.3),
       status: 'pending',
       createdAt: new Date().toISOString(),
       notificationRead: false
@@ -1051,10 +1065,10 @@ function createApp() {
   // 8. Offline venue assistant (no external AI service required)
   app.post('/api/ai-assistant', (req, res) => {
     const query = String(req.body?.userQuery || '').toLowerCase();
-    let reply = 'We offer Alpha Hall (up to 53 guests) and Hall B (up to 31 guests). Both cost RM 40/hour, RM 149 half-day, or RM 299 full-day. Select “Book A Hall” to check a date and submit your request.';
+    let reply = 'Alpha Hall costs RM 200 half-day or RM 400 full-day. Hall B costs RM 200/RM 400 for one side, or RM 400/RM 800 for the full hall (half-day/full-day). Select “Book A Hall” to check availability.';
 
     if (/price|rate|cost|berapa|harga/.test(query)) {
-      reply = 'Both halls cost RM 40 per hour, RM 149 for a half day, or RM 299 for a full day. Optional presenter cables and the flipchart set are RM 15 each; catering is quoted separately.';
+      reply = 'Alpha Hall is RM 200 half-day or RM 400 full-day. Hall B is RM 200 half-day or RM 400 full-day for one side; the full Hall B is RM 400 half-day or RM 800 full-day. Optional equipment is charged separately.';
     } else if (/capacity|people|guest|pax|muat/.test(query)) {
       reply = 'Alpha Hall accommodates up to 53 guests. Hall B accommodates up to 31 guests. Alpha Hall is the better choice for groups larger than 31.';
     } else if (/facility|equipment|projector|microphone|wifi|surau|toilet/.test(query)) {

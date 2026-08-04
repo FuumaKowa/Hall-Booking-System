@@ -103,10 +103,10 @@ export const HallCard: React.FC<HallCardProps> = ({ hall, onBookHall, onViewFloo
 
         <div className="text-right">
           <div className="text-xl font-bold font-serif text-stone-900">
-            Half Day: <span className="text-emerald-800">RM {hall.halfDayRate}</span>
+            Half Day: <span className="text-emerald-800">RM {hall.id === 'hall-b' ? hall.halfHallHalfDayRate : hall.halfDayRate}</span>
           </div>
           <div className="text-xs text-sky-800 font-semibold mt-0.5">
-            Full Day: RM {hall.fullDayRate}
+            {hall.id === 'hall-b' ? `One side full day: RM ${hall.halfHallFullDayRate} • Full hall from RM ${hall.halfDayRate}` : `Full Day: RM ${hall.fullDayRate}`}
           </div>
         </div>
       </div>

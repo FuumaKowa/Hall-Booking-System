@@ -549,6 +549,11 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
                           <div>
                             <span className="font-mono text-xs font-bold text-amber-400 mr-2">{b.referenceNumber}</span>
                             <span className="font-serif font-bold text-white text-sm">{b.hallName}</span>
+                            {b.hallId === 'hall-b' && (
+                              <span className="rounded-full border border-sky-700/60 bg-sky-950/50 px-2 py-0.5 text-[9px] font-bold text-sky-300">
+                                {b.hallSection === 'side-a' ? 'SIDE A' : b.hallSection === 'side-b' ? 'SIDE B' : 'FULL HALL'}
+                              </span>
+                            )}
                           </div>
 
                           <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${

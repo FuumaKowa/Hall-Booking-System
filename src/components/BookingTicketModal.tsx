@@ -277,7 +277,7 @@ export const BookingTicketModal: React.FC<BookingTicketModalProps> = ({ booking,
               <div className="space-y-1 text-stone-700">
                 <p className="font-bold text-amber-900 text-sm flex items-center gap-1">
                   <MapPin className="w-4 h-4 text-amber-600" />
-                  {booking.hallName}
+                  {booking.hallName}{booking.hallId === 'hall-b' ? ` • ${booking.hallSection === 'side-a' ? 'Side A' : booking.hallSection === 'side-b' ? 'Side B' : 'Full Hall'}` : ''}
                 </p>
                 <p className="text-stone-800">
                   Occasion: <strong>{booking.eventType}</strong>
@@ -424,6 +424,7 @@ export const BookingTicketModal: React.FC<BookingTicketModalProps> = ({ booking,
 ---------------------------------------
 📌 *Ref No:* ${booking.referenceNumber}
 🏢 *Hall:* ${booking.hallName}
+📍 *Area:* ${booking.hallSection === 'side-a' ? 'Side A' : booking.hallSection === 'side-b' ? 'Side B' : booking.hallSection === 'full' ? 'Full Hall' : 'Entire Alpha Hall'}
 👤 *Name:* ${booking.customerName}
 📞 *Phone:* ${booking.customerPhone}
 📅 *Event Date:* ${booking.eventDate}
@@ -459,4 +460,3 @@ export const BookingTicketModal: React.FC<BookingTicketModalProps> = ({ booking,
     </div>
   );
 };
-

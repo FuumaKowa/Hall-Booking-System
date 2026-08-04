@@ -1,4 +1,4 @@
-import { BookingRequest, HallId, TimeSlot } from '../types';
+import { BookingRequest, HallId, HallSection, TimeSlot } from '../types';
 
 export interface SlotRange {
   startMin: number; // Minutes from 00:00
@@ -112,6 +112,7 @@ export function getWednesdaySyntheticBooking(hallId: HallId, dateStr: string): B
     referenceNumber: 'BK-WED-DEFAULT',
     hallId,
     hallName: (hallId === 'hall-alpha' || hallId === 'hall-grand-horizon' || hallId.includes('alpha')) ? 'ALPHA HALL' : 'HALL B',
+    hallSection: hallId === 'hall-b' ? 'full' : undefined,
     customerName: 'Default Weekly Reservation',
     customerEmail: 'management@imadina.com',
     customerPhone: '+601119602980',
@@ -137,13 +138,19 @@ export function getWednesdaySyntheticBooking(hallId: HallId, dateStr: string): B
  * Checks if two bookings conflict (same hall, same date, non-declined status, overlapping times)
  */
 export function doBookingsOverlap(
-  bookingA: { hallId: HallId; eventDate: string; timeSlot: TimeSlot; startTime?: string; durationHours?: number; id?: string },
-  bookingB: { hallId: HallId; eventDate: string; timeSlot: TimeSlot; startTime?: string; durationHours?: number; id?: string; status: string }
+  bookingA: { hallId: HallId; eventDate: string; timeSlot: TimeSlot; startTime?: string; durationHours?: number; hallSection?: HallSection; id?: string },
+  bookingB: { hallId: HallId; eventDate: string; timeSlot: TimeSlot; startTime?: string; durationHours?: number; hallSection?: HallSection; id?: string; status: string }
 ): boolean {
   if (bookingB.status === 'declined') return false;
   if (bookingA.id && bookingB.id && bookingA.id === bookingB.id) return false;
   if (bookingA.hallId !== bookingB.hallId) return false;
   if (bookingA.eventDate !== bookingB.eventDate) return false;
+
+  if (bookingA.hallId === 'hall-b') {
+    const sectionA = bookingA.hallSection || 'full';
+    const sectionB = bookingB.hallSection || 'full';
+    if (sectionA !== 'full' && sectionB !== 'full' && sectionA !== sectionB) return false;
+  }
 
   // If Wednesday morning slot default reservation check
   if (isWednesdayDate(bookingA.eventDate)) {

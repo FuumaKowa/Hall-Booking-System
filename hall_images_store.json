@@ -1,0 +1,24 @@
+{
+  "hall-alpha": {
+    "primaryImage": "/images/hall_alpha.jpeg",
+    "secondaryImages": [
+      "/images/hall_alpha2.jpeg",
+      "/images/surau.jpeg"
+    ]
+  },
+  "hall-grand-horizon": {
+    "secondaryImages": [
+      "/uploads/hall-grand-horizon_secondary_0_1785807751842.jpg",
+      "/uploads/hall-grand-horizon_secondary_1_1785807757652.jpg"
+    ],
+    "primaryImage": "/uploads/hall-grand-horizon_primary_1785807747608.jpg"
+  },
+  "hall-serenade-glasshouse": {
+    "primaryImage": "/uploads/hall-serenade-glasshouse_primary_1785807649081.jpg",
+    "secondaryImages": [
+      "/images/hall_b_view_one.jpg",
+      "/images/hall_b_view_two.jpg",
+      "/images/surau.jpg"
+    ]
+  }
+}

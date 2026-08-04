@@ -38,7 +38,7 @@ export const HallCard: React.FC<HallCardProps> = ({ hall, onBookHall, onViewFloo
   // Deduplicate and clean image paths
   const isAlphaHall = hall.id === 'hall-alpha' || hall.id.includes('alpha') || hall.id === 'hall-grand-horizon';
   const rawPrimary = cleanImageUrl(hall.primaryImage, isAlphaHall ? '/images/hall_alpha.jpeg' : '/images/hall_b_panoramic.jpeg');
-  const rawSecondary = (hall.secondaryImages || []).map(img => cleanImageUrl(img, '/images/surau.jpeg'));
+  const rawSecondary = (hall.secondaryImages || []).map(img => cleanImageUrl(img, '/images/surau-v2.jpeg'));
 
   const images = Array.from(new Set([rawPrimary, ...rawSecondary].filter(Boolean)));
   const currentImg = images[activeImgIndex] || rawPrimary;

@@ -52,7 +52,7 @@ export async function fetchAllHalls(): Promise<{ halls: Hall[]; addons: typeof A
     const halls = result.data.halls.map((hall: Hall) => ({
       ...hall,
       primaryImage: cleanImageUrl(hall.primaryImage, '/images/hall_alpha.jpeg'),
-      secondaryImages: (hall.secondaryImages || []).map(img => cleanImageUrl(img, '/images/surau.jpeg'))
+      secondaryImages: (hall.secondaryImages || []).map(img => cleanImageUrl(img, '/images/surau-v2.jpeg'))
     }));
     return { halls, addons: result.data.addons || ADDON_OPTIONS };
   }

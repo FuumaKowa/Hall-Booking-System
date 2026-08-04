@@ -100,7 +100,7 @@ function sanitizeImageUrl(url?: string): string | undefined {
   if (lower.includes('hall b panoramic.png') || lower.includes('hall%20b%20panoramic.png') || lower.includes('hall_b_panoramic.jpg')) return '/images/hall_b_panoramic.jpeg';
   if (lower.includes('hall_b_view_one')) return '/images/hall_b_view_one.jpeg';
   if (lower.includes('hall_b_view_two')) return '/images/hall_b_view_two.jpeg';
-  if (lower.includes('surau')) return '/images/surau.jpeg';
+  if (lower.includes('surau')) return '/images/surau-v2.jpeg';
   if (url.startsWith('/src/assets/images/')) {
     return url.replace('/src/assets/images/', '/images/');
   }

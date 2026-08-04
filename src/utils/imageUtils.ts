@@ -36,8 +36,8 @@ export function cleanImageUrl(url?: string, defaultFallback = '/images/hall_alph
   if (lower === '/images/hall_b_view_two.jpeg' || lower === '/images/hall_b_view_two.jpg' || lower.includes('hall_b_view_two')) {
     return '/images/hall_b_view_two.jpeg';
   }
-  if (lower === '/images/surau.jpeg' || lower === '/images/surau.jpg' || lower === 'surau.jpg' || lower === '/surau.jpg') {
-    return '/images/surau.jpeg';
+  if (lower.includes('surau')) {
+    return '/images/surau-v2.jpeg';
   }
   if (lower.includes('imadina')) {
     return '/imadina-logo.jpg';

@@ -1,4 +1,4 @@
-export function cleanImageUrl(url?: string, defaultFallback = '/images/hall_alpha.jpg'): string {
+export function cleanImageUrl(url?: string, defaultFallback = '/images/hall_alpha.jpeg'): string {
   if (!url || typeof url !== 'string' || url.trim() === '') {
     return defaultFallback;
   }
@@ -21,20 +21,20 @@ export function cleanImageUrl(url?: string, defaultFallback = '/images/hall_alph
   }
 
   // 4. Exact static asset matches or legacy uncompressed names
-  if (lower === '/images/hall_alpha.jpg' || lower.endsWith('hall alpha.png') || lower.endsWith('hall%20alpha.png')) {
-    return '/images/hall_alpha.jpg';
+  if (lower === '/images/hall_alpha.jpeg' || lower === '/images/hall_alpha.jpg' || lower.endsWith('hall alpha.png') || lower.endsWith('hall%20alpha.png')) {
+    return '/images/hall_alpha.jpeg';
   }
-  if (lower === '/images/hall_b_panoramic.jpg' || lower.endsWith('hall b panoramic.png') || lower.endsWith('hall%20b%20panoramic.png')) {
-    return '/images/hall_b_panoramic.jpg';
+  if (lower === '/images/hall_b_panoramic.jpeg' || lower === '/images/hall_b_panoramic.jpg' || lower.endsWith('hall b panoramic.png') || lower.endsWith('hall%20b%20panoramic.png')) {
+    return '/images/hall_b_panoramic.jpeg';
   }
-  if (lower === '/images/hall_b_view_one.jpg' || lower.includes('hall_b_view_one')) {
-    return '/images/hall_b_view_one.jpg';
+  if (lower === '/images/hall_b_view_one.jpeg' || lower === '/images/hall_b_view_one.jpg' || lower.includes('hall_b_view_one')) {
+    return '/images/hall_b_view_one.jpeg';
   }
-  if (lower === '/images/hall_b_view_two.jpg' || lower.includes('hall_b_view_two')) {
-    return '/images/hall_b_view_two.jpg';
+  if (lower === '/images/hall_b_view_two.jpeg' || lower === '/images/hall_b_view_two.jpg' || lower.includes('hall_b_view_two')) {
+    return '/images/hall_b_view_two.jpeg';
   }
-  if (lower === '/images/surau.jpg' || lower === 'surau.jpg' || lower === '/surau.jpg') {
-    return '/images/surau.jpg';
+  if (lower === '/images/surau.jpeg' || lower === '/images/surau.jpg' || lower === 'surau.jpg' || lower === '/surau.jpg') {
+    return '/images/surau.jpeg';
   }
   if (lower.includes('imadina')) {
     return '/imadina-logo.jpg';

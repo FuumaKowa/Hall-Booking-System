@@ -110,18 +110,18 @@ function sanitizeImageUrl(url?: string): string | undefined {
     return url;
   }
 
-  if (lower.includes('hall alpha.png') || lower.includes('hall%20alpha.png')) return '/images/hall_alpha.jpg';
-  if (lower.includes('hall b panoramic.png') || lower.includes('hall%20b%20panoramic.png')) return '/images/hall_b_panoramic.jpg';
-  if (lower.includes('hall_b_view_one')) return '/images/hall_b_view_one.jpg';
-  if (lower.includes('hall_b_view_two')) return '/images/hall_b_view_two.jpg';
-  if (lower.includes('surau')) return '/images/surau.jpg';
+  if (lower.includes('hall alpha.png') || lower.includes('hall%20alpha.png') || lower.includes('hall_alpha.jpg')) return '/images/hall_alpha.jpeg';
+  if (lower.includes('hall b panoramic.png') || lower.includes('hall%20b%20panoramic.png') || lower.includes('hall_b_panoramic.jpg')) return '/images/hall_b_panoramic.jpeg';
+  if (lower.includes('hall_b_view_one')) return '/images/hall_b_view_one.jpeg';
+  if (lower.includes('hall_b_view_two')) return '/images/hall_b_view_two.jpeg';
+  if (lower.includes('surau')) return '/images/surau.jpeg';
   if (url.startsWith('/src/assets/images/')) {
     return url.replace('/src/assets/images/', '/images/');
   }
   return url;
 }
 
-async function uploadImageToStorage(dataUrl: string, hallId: string, imageType: string): Promise<string> {
+async function processAndSaveImage(dataUrl: string, hallId: string, imageType: string): Promise<string> {
   if (!dataUrl || typeof dataUrl !== 'string') return dataUrl;
   
   // If it's already a hosted or local path URL, return directly
@@ -494,13 +494,13 @@ async function startServer() {
     }
 
     if (primaryImage !== undefined) {
-      const uploadedPrimary = await uploadImageToStorage(primaryImage, hallId, 'primary');
+      const uploadedPrimary = await processAndSaveImage(primaryImage, hallId, 'primary');
       customHallImagesMap[hallId].primaryImage = uploadedPrimary;
     }
     if (secondaryImages !== undefined && Array.isArray(secondaryImages)) {
       const processedSecondary: string[] = [];
       for (let i = 0; i < secondaryImages.length; i++) {
-        const uploadedSec = await uploadImageToStorage(secondaryImages[i], hallId, `secondary_${i}`);
+        const uploadedSec = await processAndSaveImage(secondaryImages[i], hallId, `secondary_${i}`);
         processedSecondary.push(uploadedSec);
       }
       customHallImagesMap[hallId].secondaryImages = processedSecondary;

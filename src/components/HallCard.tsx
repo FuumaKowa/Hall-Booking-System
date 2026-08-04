@@ -36,8 +36,8 @@ export const HallCard: React.FC<HallCardProps> = ({ hall, onBookHall, onViewFloo
   const [fitMode, setFitMode] = useState<'cover' | 'contain'>('cover');
 
   // Deduplicate and clean image paths
-  const rawPrimary = cleanImageUrl(hall.primaryImage, hall.id.includes('grand') ? '/images/hall_alpha.jpg' : '/images/hall_b_panoramic.jpg');
-  const rawSecondary = (hall.secondaryImages || []).map(img => cleanImageUrl(img, '/images/surau.jpg'));
+  const rawPrimary = cleanImageUrl(hall.primaryImage, hall.id.includes('grand') ? '/images/hall_alpha.jpeg' : '/images/hall_b_panoramic.jpeg');
+  const rawSecondary = (hall.secondaryImages || []).map(img => cleanImageUrl(img, '/images/surau.jpeg'));
 
   const images = Array.from(new Set([rawPrimary, ...rawSecondary].filter(Boolean)));
   const currentImg = images[activeImgIndex] || rawPrimary;
@@ -130,8 +130,8 @@ export const HallCard: React.FC<HallCardProps> = ({ hall, onBookHall, onViewFloo
               referrerPolicy="no-referrer"
               onError={(e) => {
                 const target = e.currentTarget;
-                if (!target.src.endsWith('/images/hall_alpha.jpg') && !target.src.endsWith('/images/hall_b_panoramic.jpg')) {
-                  target.src = hall.id.includes('grand') ? '/images/hall_alpha.jpg' : '/images/hall_b_panoramic.jpg';
+                if (!target.src.endsWith('/images/hall_alpha.jpeg') && !target.src.endsWith('/images/hall_b_panoramic.jpeg')) {
+                  target.src = hall.id.includes('grand') ? '/images/hall_alpha.jpeg' : '/images/hall_b_panoramic.jpeg';
                 }
               }}
               className={`w-full h-full transition-all duration-300 ${

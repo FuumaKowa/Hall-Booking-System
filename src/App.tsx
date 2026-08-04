@@ -73,8 +73,8 @@ export default function App() {
         if (hData.halls && Array.isArray(hData.halls)) {
           const sanitizedHalls = hData.halls.map((hall: Hall) => ({
             ...hall,
-            primaryImage: cleanImageUrl(hall.primaryImage, hall.id.includes('grand') ? '/images/hall_alpha.jpg' : '/images/hall_b_panoramic.jpg'),
-            secondaryImages: (hall.secondaryImages || []).map((img: string) => cleanImageUrl(img, '/images/surau.jpg'))
+            primaryImage: cleanImageUrl(hall.primaryImage, hall.id.includes('grand') ? '/images/hall_alpha.jpeg' : '/images/hall_b_panoramic.jpeg'),
+            secondaryImages: (hall.secondaryImages || []).map((img: string) => cleanImageUrl(img, '/images/surau.jpeg'))
           }));
           setHalls(sanitizedHalls);
         }

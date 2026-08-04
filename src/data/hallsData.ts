@@ -8,7 +8,7 @@ const surauFacilityImg = '/images/surau.jpeg';
 
 export const HALLS_DATA: Hall[] = [
   {
-    id: 'hall-grand-horizon',
+    id: 'hall-alpha',
     name: 'ALPHA HALL',
     tagline: 'Equipped space for seminars, meetings & classes',
     description: 'Fully equipped hall with AV system, projector, air conditioning, and surau access.',
@@ -63,7 +63,7 @@ export const HALLS_DATA: Hall[] = [
     ]
   },
   {
-    id: 'hall-serenade-glasshouse',
+    id: 'hall-b',
     name: 'HALL B',
     tagline: 'Ideal for small gatherings, private events & meetings',
     description: 'Comfortable event space with dining setups, lounge seating, air conditioning, and surau access.',

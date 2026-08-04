@@ -1,4 +1,4 @@
-export type HallId = 'hall-grand-horizon' | 'hall-serenade-glasshouse';
+export type HallId = 'hall-alpha' | 'hall-b' | 'hall-grand-horizon' | 'hall-serenade-glasshouse';
 
 export interface Hall {
   id: HallId;

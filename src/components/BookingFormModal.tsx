@@ -20,7 +20,7 @@ interface BookingFormModalProps {
 }
 
 export const BookingFormModal: React.FC<BookingFormModalProps> = ({
-  initialHallId = 'hall-grand-horizon',
+  initialHallId = 'hall-alpha',
   initialDate,
   onClose,
   onBookingCreated
@@ -465,7 +465,7 @@ _Sent via I-Madina Event Space Website_`;
                           : 'bg-white border-stone-200 hover:border-stone-300'
                       }`}
                     >
-                      <img src={cleanImageUrl(hall.primaryImage, hall.id.includes('grand') ? '/images/hall_alpha.jpeg' : '/images/hall_b_panoramic.jpeg')} alt={hall.name} referrerPolicy="no-referrer" className="w-16 h-16 rounded-xl object-cover shrink-0" />
+                      <img src={cleanImageUrl(hall.primaryImage, (hall.id === 'hall-alpha' || hall.id.includes('alpha') || hall.id.includes('grand')) ? '/images/hall_alpha.jpeg' : '/images/hall_b_panoramic.jpeg')} alt={hall.name} referrerPolicy="no-referrer" className="w-16 h-16 rounded-xl object-cover shrink-0" />
                       <div>
                         <div className="flex items-center justify-between">
                           <h4 className="font-serif font-bold text-stone-900 text-sm">{hall.name}</h4>

@@ -51,7 +51,7 @@ export const Footer: React.FC<FooterProps> = ({
             <ul className="space-y-2">
               <li>
                 <button 
-                  onClick={() => onSelectHallScroll('hall-grand-horizon')}
+                  onClick={() => onSelectHallScroll('hall-alpha')}
                   className="text-stone-600 hover:text-emerald-700 transition-colors flex items-center gap-1.5"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
@@ -60,7 +60,7 @@ export const Footer: React.FC<FooterProps> = ({
               </li>
               <li>
                 <button 
-                  onClick={() => onSelectHallScroll('hall-serenade-glasshouse')}
+                  onClick={() => onSelectHallScroll('hall-b')}
                   className="text-stone-600 hover:text-sky-700 transition-colors flex items-center gap-1.5"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-sky-600"></span>

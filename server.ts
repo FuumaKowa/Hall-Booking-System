@@ -27,7 +27,7 @@ const db = firebaseConfig.firestoreDatabaseId
 interface BookingRecord {
   id: string;
   referenceNumber: string;
-  hallId: 'hall-grand-horizon' | 'hall-serenade-glasshouse';
+  hallId: 'hall-alpha' | 'hall-b' | 'hall-grand-horizon' | 'hall-serenade-glasshouse';
   hallName: string;
   customerName: string;
   customerEmail: string;
@@ -188,8 +188,8 @@ const sampleBookings: BookingRecord[] = [
   {
     id: 'b-101',
     referenceNumber: 'BK-2026-7841',
-    hallId: 'hall-grand-horizon',
-    hallName: 'Hall A',
+    hallId: 'hall-alpha',
+    hallName: 'ALPHA HALL',
     customerName: 'Ahmad Razak',
     customerEmail: 'ahmad.razak@example.com',
     customerPhone: '+60 12-345 6789',
@@ -217,8 +217,8 @@ const sampleBookings: BookingRecord[] = [
   {
     id: 'b-102',
     referenceNumber: 'BK-2026-9032',
-    hallId: 'hall-serenade-glasshouse',
-    hallName: 'Hall B',
+    hallId: 'hall-b',
+    hallName: 'HALL B',
     customerName: 'Siti Aminah',
     customerEmail: 'siti.aminah@example.com',
     customerPhone: '+60 19-876 5432',
@@ -246,8 +246,8 @@ const sampleBookings: BookingRecord[] = [
   {
     id: 'b-103',
     referenceNumber: 'BK-2026-4419',
-    hallId: 'hall-grand-horizon',
-    hallName: 'Hall A',
+    hallId: 'hall-alpha',
+    hallName: 'ALPHA HALL',
     customerName: 'David Lee',
     customerEmail: 'd.lee@example.com',
     customerPhone: '+60 16-234 5678',

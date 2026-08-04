@@ -47,14 +47,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Desktop Quick Nav Links */}
         <nav className="hidden lg:flex items-center space-x-8 text-sm font-semibold">
           <button 
-            onClick={() => onSelectHallScroll('hall-grand-horizon')}
+            onClick={() => onSelectHallScroll('hall-alpha')}
             className="text-stone-700 hover:text-emerald-700 transition-colors duration-150 py-1"
           >
             ALPHA HALL
           </button>
 
           <button 
-            onClick={() => onSelectHallScroll('hall-serenade-glasshouse')}
+            onClick={() => onSelectHallScroll('hall-b')}
             className="text-stone-700 hover:text-emerald-700 transition-colors duration-150 py-1"
           >
             HALL B

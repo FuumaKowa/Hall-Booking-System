@@ -8,7 +8,7 @@ interface FloorPlanModalProps {
 }
 
 export const FloorPlanModal: React.FC<FloorPlanModalProps> = ({ hall, onClose }) => {
-  const isGrand = hall.id === 'hall-grand-horizon';
+  const isAlpha = hall.id === 'hall-alpha' || hall.id.includes('alpha') || hall.id === 'hall-grand-horizon';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-xs overflow-y-auto">
@@ -55,7 +55,7 @@ export const FloorPlanModal: React.FC<FloorPlanModalProps> = ({ hall, onClose })
               <Users className="w-6 h-6 text-amber-600" />
               <span className="font-bold text-stone-900">MAIN SEATING / CLASSROOM ZONE</span>
               <span className="text-[10px] text-stone-600">
-                {isGrand ? '53 Chairs & 13 Tables Setup' : '31 Chairs, 7 Round & Dining Tables'}
+                {isAlpha ? '53 Chairs & 13 Tables Setup' : '31 Chairs, 7 Round & Dining Tables'}
               </span>
             </div>
 

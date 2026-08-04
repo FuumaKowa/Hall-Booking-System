@@ -133,8 +133,8 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
           const isWed = isWednesdayDate(dateString);
           const dateBookings = getBookingsForDate(dateString);
-          const hasGrandBooked = dateBookings.some(b => b.hallId === 'hall-grand-horizon');
-          const hasGlasshouseBooked = dateBookings.some(b => b.hallId === 'hall-serenade-glasshouse');
+          const hasAlphaBooked = dateBookings.some(b => b.hallId === 'hall-alpha' || b.hallId === 'hall-grand-horizon' || b.hallId.includes('alpha'));
+          const hasHallBBooked = dateBookings.some(b => b.hallId === 'hall-b' || b.hallId === 'hall-serenade-glasshouse');
 
           return (
             <div
@@ -174,19 +174,19 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
               {/* Status Badges for Halls on this day */}
               <div className="space-y-1">
-                {hasGrandBooked ? (
+                {hasAlphaBooked ? (
                   <div className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-semibold truncate flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                    <span className="hidden sm:inline">Hall A Booked</span>
-                    <span className="sm:hidden">Hall A</span>
+                    <span className="hidden sm:inline">Alpha Hall Booked</span>
+                    <span className="sm:hidden">Alpha</span>
                   </div>
                 ) : (
                   <div className="text-[9px] px-1.5 py-0.5 rounded bg-white text-stone-500 border border-stone-200 truncate font-medium">
-                    Hall A Open
+                    Alpha Hall Open
                   </div>
                 )}
 
-                {hasGlasshouseBooked ? (
+                {hasHallBBooked ? (
                   <div className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300 font-semibold truncate flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                     <span className="hidden sm:inline">Hall B Booked</span>

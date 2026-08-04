@@ -111,7 +111,7 @@ export function getWednesdaySyntheticBooking(hallId: HallId, dateStr: string): B
     id: `wed-reserved-${hallId}-${dateStr}`,
     referenceNumber: 'BK-WED-DEFAULT',
     hallId,
-    hallName: hallId === 'hall-grand-horizon' ? 'ALPHA HALL' : 'HALL B',
+    hallName: (hallId === 'hall-alpha' || hallId === 'hall-grand-horizon' || hallId.includes('alpha')) ? 'ALPHA HALL' : 'HALL B',
     customerName: 'Default Weekly Reservation',
     customerEmail: 'management@imadina.com',
     customerPhone: '+601119602980',

@@ -36,7 +36,8 @@ export const HallCard: React.FC<HallCardProps> = ({ hall, onBookHall, onViewFloo
   const [fitMode, setFitMode] = useState<'cover' | 'contain'>('cover');
 
   // Deduplicate and clean image paths
-  const rawPrimary = cleanImageUrl(hall.primaryImage, hall.id.includes('grand') ? '/images/hall_alpha.jpeg' : '/images/hall_b_panoramic.jpeg');
+  const isAlphaHall = hall.id === 'hall-alpha' || hall.id.includes('alpha') || hall.id === 'hall-grand-horizon';
+  const rawPrimary = cleanImageUrl(hall.primaryImage, isAlphaHall ? '/images/hall_alpha.jpeg' : '/images/hall_b_panoramic.jpeg');
   const rawSecondary = (hall.secondaryImages || []).map(img => cleanImageUrl(img, '/images/surau.jpeg'));
 
   const images = Array.from(new Set([rawPrimary, ...rawSecondary].filter(Boolean)));
@@ -53,8 +54,7 @@ export const HallCard: React.FC<HallCardProps> = ({ hall, onBookHall, onViewFloo
     return `Photo ${idx + 1}`;
   };
 
-  const isGrandHorizon = hall.id === 'hall-grand-horizon';
-  const themeAccent = isGrandHorizon 
+  const themeAccent = isAlphaHall 
     ? {
         border: 'border-emerald-200 hover:border-emerald-400',
         badge: 'bg-emerald-100 text-emerald-900 border-emerald-300',
@@ -88,7 +88,7 @@ export const HallCard: React.FC<HallCardProps> = ({ hall, onBookHall, onViewFloo
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-2">
           <span className={`px-3 py-1 rounded-full text-xs font-bold border ${themeAccent.badge}`}>
-            {hall.badgeText || (isGrandHorizon ? 'Alpha Hall • Up to 30 Pax' : 'Hall B • Up to 35 Pax')}
+            {hall.badgeText || (isAlphaHall ? 'Alpha Hall • Up to 53 Pax' : 'Hall B • Up to 31 Pax')}
           </span>
           <span className="text-xs text-stone-700 bg-stone-100 px-2.5 py-1 rounded-full border border-stone-200 flex items-center gap-1 font-medium">
             <Users className="w-3.5 h-3.5 text-stone-600" />
@@ -131,7 +131,7 @@ export const HallCard: React.FC<HallCardProps> = ({ hall, onBookHall, onViewFloo
               onError={(e) => {
                 const target = e.currentTarget;
                 if (!target.src.endsWith('/images/hall_alpha.jpeg') && !target.src.endsWith('/images/hall_b_panoramic.jpeg')) {
-                  target.src = hall.id.includes('grand') ? '/images/hall_alpha.jpeg' : '/images/hall_b_panoramic.jpeg';
+                  target.src = isAlphaHall ? '/images/hall_alpha.jpeg' : '/images/hall_b_panoramic.jpeg';
                 }
               }}
               className={`w-full h-full transition-all duration-300 ${

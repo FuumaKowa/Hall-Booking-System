@@ -48,7 +48,7 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
   onResetHallImages = async (_hallId: string) => {}
 }) => {
   const [activeTab, setActiveTab] = useState<'notifications' | 'bookings' | 'scheduleInspector' | 'photos' | 'emailLog'>('notifications');
-  const [selectedHallForMedia, setSelectedHallForMedia] = useState<HallId>('hall-serenade-glasshouse');
+  const [selectedHallForMedia, setSelectedHallForMedia] = useState<HallId>('hall-b');
   const [uploadingState, setUploadingState] = useState<string | null>(null);
   const [urlInput, setUrlInput] = useState<{ [key: string]: string }>({});
 
@@ -688,7 +688,7 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
                     <div key={hall.id} className="p-4 rounded-2xl bg-stone-950 border border-stone-800 space-y-3">
                       <div className="flex items-center justify-between border-b border-stone-800 pb-2">
                         <div className="flex items-center space-x-2">
-                          <img src={cleanImageUrl(hall.primaryImage, hall.id.includes('grand') ? '/images/hall_alpha.jpeg' : '/images/hall_b_panoramic.jpeg')} alt={hall.name} referrerPolicy="no-referrer" className="w-10 h-10 rounded-lg object-cover" />
+                          <img src={cleanImageUrl(hall.primaryImage, (hall.id === 'hall-alpha' || hall.id.includes('alpha') || hall.id.includes('grand')) ? '/images/hall_alpha.jpeg' : '/images/hall_b_panoramic.jpeg')} alt={hall.name} referrerPolicy="no-referrer" className="w-10 h-10 rounded-lg object-cover" />
                           <div>
                             <h5 className="font-serif font-bold text-white text-sm">{hall.name}</h5>
                             <span className="text-[10px] text-stone-400">Date: {inspectorDate}</span>
@@ -849,7 +849,7 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
                       {/* Image Preview */}
                       <div className="relative aspect-video rounded-xl overflow-hidden border border-stone-700 bg-stone-900 group">
                         <img 
-                          src={cleanImageUrl(hall.primaryImage, hall.id.includes('grand') ? '/images/hall_alpha.jpeg' : '/images/hall_b_panoramic.jpeg')} 
+                          src={cleanImageUrl(hall.primaryImage, (hall.id === 'hall-alpha' || hall.id.includes('alpha') || hall.id.includes('grand')) ? '/images/hall_alpha.jpeg' : '/images/hall_b_panoramic.jpeg')} 
                           alt={`${hall.name} Cover`}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
                         />

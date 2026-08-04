@@ -8,8 +8,8 @@ interface HallComparisonTableProps {
 }
 
 export const HallComparisonTable: React.FC<HallComparisonTableProps> = ({ onBookHall }) => {
-  const hall1 = HALLS_DATA[0]; // Grand Horizon
-  const hall2 = HALLS_DATA[1]; // Serenade Glasshouse
+  const hall1 = HALLS_DATA[0]; // Alpha Hall
+  const hall2 = HALLS_DATA[1]; // Hall B
 
   return (
     <div className="my-16 bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-md">

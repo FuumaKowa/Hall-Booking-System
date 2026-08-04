@@ -7,6 +7,7 @@ import {
 import { HALLS_DATA, ADDON_OPTIONS } from '../data/hallsData';
 import { cleanImageUrl } from '../utils/imageUtils';
 import { safeFetchJson } from '../utils/apiUtils';
+import { createNewBooking } from '../services/dataService';
 import { HallId, TimeSlot, BookingRequest, NotificationItem } from '../types';
 import { doBookingsOverlap, calculateBookingHours, isWednesdayDate, getSameDayRestriction } from '../utils/availability';
 import { BookingTicketModal } from './BookingTicketModal';
@@ -289,88 +290,24 @@ _Sent via I-Madina Event Space Website_`;
     };
 
     try {
-      const { ok, status, data, error } = await safeFetchJson('/api/bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      const { booking, notification } = await createNewBooking(payload);
+
+      setConfirmationData({
+        booking,
+        notification
       });
 
-      if (ok && data?.success && data?.booking) {
-        setConfirmationData({
-          booking: data.booking,
-          notification: data.notification
-        });
-
-        const waUrl = constructWhatsAppUrl(data.booking);
-        try {
-          window.open(waUrl, '_blank');
-        } catch (err) {
-          console.log('WhatsApp window launch prevented by browser', err);
-        }
-
-        onBookingCreated(data.booking, data.notification);
-      } else if (status === 400 || status === 409 || data?.failsafeTriggered || data?.error) {
-        setErrorMsg(data?.error || error || 'Failed to process booking submission.');
-      } else {
-        // Fallback for static builds without active API backend (e.g., static Vercel host)
-        const refNum = `IM-${Math.floor(100000 + Math.random() * 900000)}`;
-        const localBooking: BookingRequest = {
-          id: `booking-${Date.now()}`,
-          referenceNumber: refNum,
-          hallId: selectedHallId,
-          hallName: currentHall.name,
-          customerName,
-          customerEmail,
-          customerPhone,
-          eventType,
-          eventDate,
-          timeSlot,
-          startTime,
-          endTime: timeSlot === 'morning' ? '13:00' : timeSlot === 'afternoon' ? '18:00' : '23:00',
-          durationHours,
-          guestCount,
-          selectedAddons,
-          specialRequests,
-          estimatedTotal: total,
-          depositAmount: deposit,
-          status: 'pending',
-          createdAt: new Date().toISOString(),
-          notificationRead: false
-        };
-
-        const localNotif: NotificationItem = {
-          id: `notif-${Date.now()}`,
-          bookingId: localBooking.id,
-          referenceNumber: refNum,
-          type: 'NEW_BOOKING',
-          title: `New Booking Request (${refNum})`,
-          message: `${customerName} requested ${currentHall.name} for ${eventDate}`,
-          customerName,
-          hallName: currentHall.name,
-          eventDate,
-          estimatedTotal: total,
-          timestamp: new Date().toISOString(),
-          read: false,
-          emailSentTo: customerEmail
-        };
-
-        setConfirmationData({
-          booking: localBooking,
-          notification: localNotif
-        });
-
-        const waUrl = constructWhatsAppUrl(localBooking);
-        try {
-          window.open(waUrl, '_blank');
-        } catch (err) {
-          console.log('WhatsApp window launch prevented by browser', err);
-        }
-
-        onBookingCreated(localBooking, localNotif);
+      const waUrl = constructWhatsAppUrl(booking);
+      try {
+        window.open(waUrl, '_blank');
+      } catch (err) {
+        console.log('WhatsApp window launch prevented by browser', err);
       }
+
+      onBookingCreated(booking, notification);
     } catch (err: any) {
       console.error('Booking submission error:', err);
-      setErrorMsg(err.message || 'Error connecting to server. Please try again.');
+      setErrorMsg(err.message || 'Error connecting to database. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

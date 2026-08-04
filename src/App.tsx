@@ -15,6 +15,15 @@ import { Footer } from './components/Footer';
 import { HALLS_DATA } from './data/hallsData';
 import { cleanImageUrl } from './utils/imageUtils';
 import { safeFetchJson } from './utils/apiUtils';
+import { 
+  fetchAllBookings, 
+  fetchAllNotifications, 
+  fetchAllHalls, 
+  updateBookingStatusInStore, 
+  recordBookingPaymentInStore, 
+  deleteBookingFromStore, 
+  markNotificationsReadInStore 
+} from './services/dataService';
 import { Hall, HallId, BookingRequest, NotificationItem, BookingStatus, PaymentStatus } from './types';
 import { Bell } from 'lucide-react';
 
@@ -52,29 +61,16 @@ export default function App() {
   // Load bookings, notifications, and hall data on mount
   const fetchData = async () => {
     try {
-      const [bRes, nRes, hRes] = await Promise.all([
-        safeFetchJson('/api/bookings'),
-        safeFetchJson('/api/notifications'),
-        safeFetchJson('/api/halls')
+      const [fetchedBookings, notifResult, hallsResult] = await Promise.all([
+        fetchAllBookings(),
+        fetchAllNotifications(),
+        fetchAllHalls()
       ]);
 
-      if (bRes.ok && bRes.data) {
-        setBookings(bRes.data.bookings || []);
-      }
-
-      if (nRes.ok && nRes.data) {
-        setNotifications(nRes.data.notifications || []);
-        setUnreadCount(nRes.data.unreadCount || 0);
-      }
-
-      if (hRes.ok && hRes.data && Array.isArray(hRes.data.halls)) {
-        const sanitizedHalls = hRes.data.halls.map((hall: Hall) => ({
-          ...hall,
-          primaryImage: cleanImageUrl(hall.primaryImage, hall.id.includes('grand') ? '/images/hall_alpha.jpeg' : '/images/hall_b_panoramic.jpeg'),
-          secondaryImages: (hall.secondaryImages || []).map((img: string) => cleanImageUrl(img, '/images/surau.jpeg'))
-        }));
-        setHalls(sanitizedHalls);
-      }
+      setBookings(fetchedBookings);
+      setNotifications(notifResult.notifications);
+      setUnreadCount(notifResult.unreadCount);
+      setHalls(hallsResult.halls);
     } catch (err) {
       console.error('Failed to fetch initial data:', err);
     }
@@ -130,8 +126,14 @@ export default function App() {
   };
 
   const handleBookingCreated = (newBooking: BookingRequest, newNotif: NotificationItem) => {
-    setBookings(prev => [newBooking, ...prev]);
-    setNotifications(prev => [newNotif, ...prev]);
+    setBookings(prev => {
+      const filtered = prev.filter(b => b.id !== newBooking.id);
+      return [newBooking, ...filtered];
+    });
+    setNotifications(prev => {
+      const filtered = prev.filter(n => n.id !== newNotif.id);
+      return [newNotif, ...filtered];
+    });
     setUnreadCount(prev => prev + 1);
 
     // Show Toast Notification
@@ -147,7 +149,7 @@ export default function App() {
 
   const handleMarkNotificationsRead = async () => {
     try {
-      await safeFetchJson('/api/notifications/mark-read', { method: 'POST' });
+      await markNotificationsReadInStore();
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (err) {
@@ -157,22 +159,8 @@ export default function App() {
 
   const handleUpdateStatus = async (bookingId: string, status: BookingStatus) => {
     try {
-      const { ok, status: statusCode, data } = await safeFetchJson(`/api/bookings/${bookingId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
-      });
-
-      if (ok && data?.success) {
-        fetchData();
-      } else if (statusCode === 409 || data?.failsafeTriggered) {
-        setFailsafeModal({
-          isOpen: true,
-          title: 'DOUBLE-BOOKING FAILSAFE ACTIVATED',
-          message: data?.error || 'Cannot approve booking because another booking is ALREADY CONFIRMED for this venue, date, and time slot.',
-          conflictingBooking: data?.conflictingBooking
-        });
-      }
+      await updateBookingStatusInStore(bookingId, status);
+      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status } : b));
     } catch (err) {
       console.error('Error updating status:', err);
     }
@@ -190,28 +178,13 @@ export default function App() {
     }
   ) => {
     try {
-      const { ok, status: statusCode, data } = await safeFetchJson(`/api/bookings/${bookingId}/payment`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(paymentData)
+      await recordBookingPaymentInStore(bookingId, paymentData);
+      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, ...paymentData } : b));
+      setToastAlert({
+        title: 'Payment Confirmed & Recorded',
+        message: `Payment status updated to "${paymentData.paymentStatus.toUpperCase()}".`
       });
-
-      if (ok && data?.success) {
-        fetchData();
-        setToastAlert({
-          title: 'Payment Confirmed & Recorded',
-          message: `Payment status updated to "${paymentData.paymentStatus.toUpperCase()}". Receipt: ${data.booking?.paymentReceiptRef || 'Generated'}`
-        });
-        setTimeout(() => setToastAlert(null), 5000);
-      } else if (statusCode === 409 || data?.failsafeTriggered) {
-        setFailsafeModal({
-          isOpen: true,
-          title: 'DOUBLE-BOOKING FAILSAFE ACTIVATED',
-          message: data?.error || 'Payment recorded, but auto-approval was blocked because another booking is ALREADY CONFIRMED for this slot.',
-          conflictingBooking: data?.conflictingBooking
-        });
-        fetchData();
-      }
+      setTimeout(() => setToastAlert(null), 5000);
     } catch (err) {
       console.error('Error updating payment:', err);
     }
@@ -219,10 +192,8 @@ export default function App() {
 
   const handleDeleteBooking = async (bookingId: string) => {
     try {
-      const { ok } = await safeFetchJson(`/api/bookings/${bookingId}`, { method: 'DELETE' });
-      if (ok) {
-        setBookings(prev => prev.filter(b => b.id !== bookingId));
-      }
+      await deleteBookingFromStore(bookingId);
+      setBookings(prev => prev.filter(b => b.id !== bookingId));
     } catch (err) {
       console.error('Error deleting booking:', err);
     }

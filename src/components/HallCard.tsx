@@ -28,14 +28,19 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   Coffee: <Coffee className="w-4 h-4 text-sky-700" />
 };
 
+import { cleanImageUrl } from '../utils/imageUtils';
+
 export const HallCard: React.FC<HallCardProps> = ({ hall, onBookHall, onViewFloorPlan }) => {
   const [activeImgIndex, setActiveImgIndex] = useState<number>(0);
   const [lightboxOpen, setLightboxOpen] = useState<boolean>(false);
   const [fitMode, setFitMode] = useState<'cover' | 'contain'>('cover');
 
-  // Deduplicate image paths
-  const images = Array.from(new Set([hall.primaryImage, ...hall.secondaryImages].filter(Boolean)));
-  const currentImg = images[activeImgIndex] || hall.primaryImage;
+  // Deduplicate and clean image paths
+  const rawPrimary = cleanImageUrl(hall.primaryImage, hall.id.includes('grand') ? '/images/hall_alpha.jpg' : '/images/hall_b_panoramic.jpg');
+  const rawSecondary = (hall.secondaryImages || []).map(img => cleanImageUrl(img, '/images/surau.jpg'));
+
+  const images = Array.from(new Set([rawPrimary, ...rawSecondary].filter(Boolean)));
+  const currentImg = images[activeImgIndex] || rawPrimary;
   const isPanoramic = currentImg.toLowerCase().includes('panoramic');
 
   const getImageLabel = (url: string, idx: number): string => {

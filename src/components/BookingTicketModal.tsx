@@ -124,7 +124,7 @@ export const BookingTicketModal: React.FC<BookingTicketModalProps> = ({ booking,
               </div>
 
               <div class="footer">
-                I-Madina Event Space • Tel: +60 3-8000 4255<br>
+                I-Madina Event Space • Tel: +601119602980<br>
                 Please present this Reference ID upon arrival or for booking inquiries.
               </div>
             </div>
@@ -190,7 +190,7 @@ export const BookingTicketModal: React.FC<BookingTicketModalProps> = ({ booking,
                   Venue Management • Official Pass
                 </p>
                 <p className="text-[10px] text-stone-500 mt-0.5">
-                  Commercial Hall • Tel: +60 3-8000 4255
+                  Commercial Hall • Tel: +601119602980
                 </p>
               </div>
             </div>

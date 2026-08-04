@@ -94,6 +94,45 @@ export function doRangesOverlap(rangeA: SlotRange, rangeB: SlotRange): boolean {
   return rangeA.startMin < rangeB.endMin && rangeA.endMin > rangeB.startMin;
 }
 
+export function isWednesdayDate(dateStr?: string): boolean {
+  if (!dateStr) return false;
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return false;
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10) - 1;
+  const d = parseInt(parts[2], 10);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return false;
+  const dt = new Date(y, m, d);
+  return dt.getDay() === 3; // Wednesday
+}
+
+export function getWednesdaySyntheticBooking(hallId: HallId, dateStr: string): BookingRequest {
+  return {
+    id: `wed-reserved-${hallId}-${dateStr}`,
+    referenceNumber: 'BK-WED-DEFAULT',
+    hallId,
+    hallName: hallId === 'hall-grand-horizon' ? 'ALPHA HALL' : 'HALL B',
+    customerName: 'Default Weekly Reservation',
+    customerEmail: 'management@imadina.com',
+    customerPhone: '+601119602980',
+    eventType: 'Weekly Reserved Slot',
+    eventDate: dateStr,
+    timeSlot: 'morning',
+    startTime: '09:00',
+    endTime: '13:00',
+    durationHours: 4,
+    guestCount: 0,
+    selectedAddons: [],
+    specialRequests: 'Reserved every Wednesday from 9am to 1pm by default for both halls.',
+    estimatedTotal: 0,
+    depositAmount: 0,
+    status: 'confirmed',
+    createdAt: new Date().toISOString(),
+    notificationRead: true,
+    paymentStatus: 'fully_paid'
+  };
+}
+
 /**
  * Checks if two bookings conflict (same hall, same date, non-declined status, overlapping times)
  */
@@ -105,6 +144,15 @@ export function doBookingsOverlap(
   if (bookingA.id && bookingB.id && bookingA.id === bookingB.id) return false;
   if (bookingA.hallId !== bookingB.hallId) return false;
   if (bookingA.eventDate !== bookingB.eventDate) return false;
+
+  // If Wednesday morning slot default reservation check
+  if (isWednesdayDate(bookingA.eventDate)) {
+    const rangeA = getBookingTimeRange(bookingA.timeSlot, bookingA.startTime, bookingA.durationHours);
+    const wedRange = { startMin: 9 * 60, endMin: 13 * 60 };
+    if (doRangesOverlap(rangeA, wedRange) && bookingB.id?.startsWith('wed-reserved')) {
+      return true;
+    }
+  }
 
   // Same hall & same date: check slot / time overlap
   if (bookingA.timeSlot === 'fullday' || bookingB.timeSlot === 'fullday') {
@@ -141,7 +189,14 @@ export function getHallSlotAvailability(
   dateStr: string,
   allBookings: BookingRequest[]
 ): DayHallAvailability {
-  const dateBookings = allBookings.filter(
+  const bookingsForDay = [...allBookings];
+
+  // Automatically inject Wednesday default reservation for both halls
+  if (isWednesdayDate(dateStr)) {
+    bookingsForDay.push(getWednesdaySyntheticBooking(hallId, dateStr));
+  }
+
+  const dateBookings = bookingsForDay.filter(
     b => b.hallId === hallId && b.eventDate === dateStr && b.status !== 'declined'
   );
 

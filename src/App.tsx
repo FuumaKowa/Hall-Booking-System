@@ -13,6 +13,7 @@ import { BookingTicketModal } from './components/BookingTicketModal';
 import { Footer } from './components/Footer';
 
 import { HALLS_DATA } from './data/hallsData';
+import { cleanImageUrl } from './utils/imageUtils';
 import { Hall, HallId, BookingRequest, NotificationItem, BookingStatus, PaymentStatus } from './types';
 import { Bell } from 'lucide-react';
 
@@ -69,8 +70,13 @@ export default function App() {
 
       if (hRes.ok) {
         const hData = await hRes.json();
-        if (hData.halls) {
-          setHalls(hData.halls);
+        if (hData.halls && Array.isArray(hData.halls)) {
+          const sanitizedHalls = hData.halls.map((hall: Hall) => ({
+            ...hall,
+            primaryImage: cleanImageUrl(hall.primaryImage, hall.id.includes('grand') ? '/images/hall_alpha.jpg' : '/images/hall_b_panoramic.jpg'),
+            secondaryImages: (hall.secondaryImages || []).map((img: string) => cleanImageUrl(img, '/images/surau.jpg'))
+          }));
+          setHalls(sanitizedHalls);
         }
       }
     } catch (err) {

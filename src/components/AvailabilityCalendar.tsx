@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, Clock, Sparkles } from 'lucide-react';
 import { BookingRequest, HallId } from '../types';
+import { isWednesdayDate } from '../utils/availability';
 
 interface AvailabilityCalendarProps {
   bookings: BookingRequest[];
@@ -88,8 +89,12 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           <span>Hall B Booked</span>
         </div>
         <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-sky-100 border border-sky-300"></span>
+          <span>Wednesdays 9am-1pm Reserved (Both Halls)</span>
+        </div>
+        <div className="flex items-center gap-2">
           <span className="w-3 h-3 rounded-full bg-stone-100 border border-stone-300"></span>
-          <span>Both Halls Available</span>
+          <span>Available</span>
         </div>
       </div>
 
@@ -119,6 +124,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           const dayStr = String(dayNum).padStart(2, '0');
           const dateString = `${year}-${monthStr}-${dayStr}`;
 
+          const isWed = isWednesdayDate(dateString);
           const dateBookings = getBookingsForDate(dateString);
           const hasGrandBooked = dateBookings.some(b => b.hallId === 'hall-grand-horizon');
           const hasGlasshouseBooked = dateBookings.some(b => b.hallId === 'hall-serenade-glasshouse');
@@ -127,16 +133,24 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
             <div
               key={dateString}
               onClick={() => onSelectDateToBook(dateString)}
-              className="group cursor-pointer h-24 sm:h-28 rounded-xl bg-stone-50 border border-stone-200 hover:border-amber-500 hover:bg-amber-50/40 p-2 flex flex-col justify-between transition-colors duration-150 relative overflow-hidden"
+              className={`group cursor-pointer h-24 sm:h-28 rounded-xl border hover:border-amber-500 hover:bg-amber-50/40 p-2 flex flex-col justify-between transition-colors duration-150 relative overflow-hidden ${
+                isWed ? 'bg-sky-50/50 border-sky-200' : 'bg-stone-50 border-stone-200'
+              }`}
             >
               <div className="flex items-center justify-between">
                 <span className="font-mono text-sm font-bold text-stone-800 group-hover:text-amber-700">
                   {dayNum}
                 </span>
 
-                <span className="text-[10px] text-amber-700 font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-                  Book +
-                </span>
+                {isWed ? (
+                  <span className="text-[9px] bg-sky-100 text-sky-800 font-bold px-1 rounded border border-sky-200">
+                    Wed 9am-1pm
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-amber-700 font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                    Book +
+                  </span>
+                )}
               </div>
 
               {/* Status Badges for Halls on this day */}

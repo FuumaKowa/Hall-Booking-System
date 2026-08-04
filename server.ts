@@ -5,6 +5,7 @@ import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc } from 'firebase/firestore';
+import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { HALLS_DATA, ADDON_OPTIONS } from './src/data/hallsData.js';
 
 // Load Firebase Config
@@ -23,6 +24,15 @@ const firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : get
 const db = firebaseConfig.firestoreDatabaseId 
   ? getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId) 
   : getFirestore(firebaseApp);
+
+const storageBucket = firebaseConfig.storageBucket || 'persuasive-vector-d7krv.firebasestorage.app';
+let storage: ReturnType<typeof getStorage> | null = null;
+try {
+  storage = getStorage(firebaseApp, `gs://${storageBucket}`);
+  console.log(`[Firebase Storage] Initialized storage bucket: gs://${storageBucket}`);
+} catch (e) {
+  console.error('[Firebase Storage] Storage init notice:', e);
+}
 
 interface BookingRecord {
   id: string;
@@ -103,15 +113,72 @@ loadHallImages();
 
 function sanitizeImageUrl(url?: string): string | undefined {
   if (!url) return undefined;
-  if (url.includes('Hall Alpha.png') || url.includes('Hall%20Alpha.png')) return '/images/hall_alpha.jpg';
-  if (url.includes('Hall B Panoramic.png') || url.includes('Hall%20B%20Panoramic.png')) return '/images/hall_b_panoramic.jpg';
-  if (url.includes('hall_b_view_one')) return '/images/hall_b_view_one.jpg';
-  if (url.includes('hall_b_view_two')) return '/images/hall_b_view_two.jpg';
-  if (url.includes('surau')) return '/images/surau.jpg';
+  const lower = url.toLowerCase().trim();
+
+  // Return uploaded image URLs directly without stripping
+  if (lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('data:image/') || lower.startsWith('/uploads/')) {
+    return url;
+  }
+
+  if (lower.includes('hall alpha.png') || lower.includes('hall%20alpha.png')) return '/images/hall_alpha.jpg';
+  if (lower.includes('hall b panoramic.png') || lower.includes('hall%20b%20panoramic.png')) return '/images/hall_b_panoramic.jpg';
+  if (lower.includes('hall_b_view_one')) return '/images/hall_b_view_one.jpg';
+  if (lower.includes('hall_b_view_two')) return '/images/hall_b_view_two.jpg';
+  if (lower.includes('surau')) return '/images/surau.jpg';
   if (url.startsWith('/src/assets/images/')) {
     return url.replace('/src/assets/images/', '/images/');
   }
   return url;
+}
+
+async function uploadImageToStorage(dataUrl: string, hallId: string, imageType: string): Promise<string> {
+  if (!dataUrl || typeof dataUrl !== 'string') return dataUrl;
+  
+  // If it's already a hosted or local path URL, return directly
+  if (dataUrl.startsWith('http://') || dataUrl.startsWith('https://') || dataUrl.startsWith('/uploads/')) {
+    return dataUrl;
+  }
+
+  if (!dataUrl.startsWith('data:image/')) {
+    return dataUrl;
+  }
+
+  // 1. Primary: Upload to Firebase Storage
+  if (storage) {
+    try {
+      const ext = dataUrl.startsWith('data:image/png') ? 'png' : 'jpg';
+      const filename = `hall_images/${hallId}_${imageType}_${Date.now()}.${ext}`;
+      const storageRef = ref(storage, filename);
+      await uploadString(storageRef, dataUrl, 'data_url');
+      const downloadUrl = await getDownloadURL(storageRef);
+      console.log(`[Firebase Storage] Uploaded ${imageType} for ${hallId} -> ${downloadUrl}`);
+      return downloadUrl;
+    } catch (err) {
+      console.error(`[Firebase Storage] Upload attempt fallback:`, err);
+    }
+  }
+
+  // 2. Fallback: Save file locally in public/uploads/
+  try {
+    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    const matches = dataUrl.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+    if (matches && matches[2]) {
+      const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+      const filename = `${hallId}_${imageType}_${Date.now()}.${ext}`;
+      const filePath = path.join(uploadsDir, filename);
+      fs.writeFileSync(filePath, Buffer.from(matches[2], 'base64'));
+      const localUrl = `/uploads/${filename}`;
+      console.log(`[Local Upload] Saved image file -> ${localUrl}`);
+      return localUrl;
+    }
+  } catch (fsErr) {
+    console.error('[Local Upload] Failed to write local image file:', fsErr);
+  }
+
+  return dataUrl;
 }
 
 function getEffectiveHalls() {
@@ -346,6 +413,18 @@ async function deleteBookingFromFirestore(id: string) {
   }
 }
 
+function isWednesdayDate(dateStr?: string): boolean {
+  if (!dateStr) return false;
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return false;
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10) - 1;
+  const d = parseInt(parts[2], 10);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return false;
+  const dt = new Date(y, m, d);
+  return dt.getDay() === 3;
+}
+
 // Helper function to check if two bookings overlap in time slot/date for the same hall
 function checkBookingOverlap(
   b1: { hallId: string; eventDate: string; timeSlot: string; startTime?: string; durationHours?: number; id?: string },
@@ -401,6 +480,10 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+  // Static uploads serving
+  app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
+  app.use('/images', express.static(path.join(process.cwd(), 'public', 'images')));
+
   // API Routes
   
   // 1. Get Hall details & add-on options
@@ -426,10 +509,16 @@ async function startServer() {
     }
 
     if (primaryImage !== undefined) {
-      customHallImagesMap[hallId].primaryImage = primaryImage;
+      const uploadedPrimary = await uploadImageToStorage(primaryImage, hallId, 'primary');
+      customHallImagesMap[hallId].primaryImage = uploadedPrimary;
     }
     if (secondaryImages !== undefined && Array.isArray(secondaryImages)) {
-      customHallImagesMap[hallId].secondaryImages = secondaryImages;
+      const processedSecondary: string[] = [];
+      for (let i = 0; i < secondaryImages.length; i++) {
+        const uploadedSec = await uploadImageToStorage(secondaryImages[i], hallId, `secondary_${i}`);
+        processedSecondary.push(uploadedSec);
+      }
+      customHallImagesMap[hallId].secondaryImages = processedSecondary;
     }
 
     saveHallImages();
@@ -518,6 +607,29 @@ async function startServer() {
       startTime: body.startTime,
       durationHours: body.durationHours || 5
     };
+
+    if (isWednesdayDate(body.eventDate)) {
+      const slot = body.timeSlot || 'morning';
+      let isWedOverlap = false;
+      if (slot === 'morning' || slot === 'fullday') {
+        isWedOverlap = true;
+      } else if (body.startTime) {
+        const parts = body.startTime.split(':').map(Number);
+        if (!isNaN(parts[0])) {
+          const startM = parts[0] * 60 + (parts[1] || 0);
+          const endM = startM + ((body.durationHours || 4) * 60);
+          if (startM < 13 * 60 && endM > 9 * 60) isWedOverlap = true;
+        }
+      }
+
+      if (isWedOverlap) {
+        return res.status(409).json({
+          success: false,
+          error: `RESERVED SLOT: Every Wednesday 09:00 AM - 01:00 PM is reserved by default for both halls. Please select Wednesday afternoon/evening or a different date.`,
+          failsafeTriggered: true
+        });
+      }
+    }
 
     // FAILSAFE CHECK 1: Is there an existing CONFIRMED booking that overlaps?
     const confirmedConflict = store.bookings.find(

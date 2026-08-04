@@ -7,6 +7,7 @@ import {
 import { BookingRequest, NotificationItem, BookingStatus, PaymentStatus, HallId, TimeSlot, Hall } from '../types';
 import { doBookingsOverlap, getHallSlotAvailability } from '../utils/availability';
 import { HALLS_DATA } from '../data/hallsData';
+import { cleanImageUrl, compressImageFile } from '../utils/imageUtils';
 import { BookingTicketModal } from './BookingTicketModal';
 
 interface ManagerPortalModalProps {
@@ -51,52 +52,55 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
   const [uploadingState, setUploadingState] = useState<string | null>(null);
   const [urlInput, setUrlInput] = useState<{ [key: string]: string }>({});
 
-  const handleFileSelectForPrimary = (hall: Hall, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelectForPrimary = async (hall: Hall, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingState(`Uploading cover image for ${hall.name}...`);
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const dataUrl = event.target?.result as string;
+    try {
+      const dataUrl = await compressImageFile(file);
       if (dataUrl) {
         await onUpdateHallImages(hall.id, dataUrl, hall.secondaryImages);
       }
+    } catch (err) {
+      console.error('Error compressing primary image:', err);
+    } finally {
       setUploadingState(null);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
-  const handleFileSelectForSecondary = (hall: Hall, index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelectForSecondary = async (hall: Hall, index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingState(`Uploading photo ${index + 1} for ${hall.name}...`);
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const dataUrl = event.target?.result as string;
+    try {
+      const dataUrl = await compressImageFile(file);
       if (dataUrl) {
         const updatedSecondary = [...hall.secondaryImages];
         updatedSecondary[index] = dataUrl;
         await onUpdateHallImages(hall.id, hall.primaryImage, updatedSecondary);
       }
+    } catch (err) {
+      console.error('Error compressing secondary image:', err);
+    } finally {
       setUploadingState(null);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
-  const handleAddSecondaryPhoto = (hall: Hall, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAddSecondaryPhoto = async (hall: Hall, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingState(`Adding photo to ${hall.name}...`);
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const dataUrl = event.target?.result as string;
+    try {
+      const dataUrl = await compressImageFile(file);
       if (dataUrl) {
         const updatedSecondary = [...hall.secondaryImages, dataUrl];
         await onUpdateHallImages(hall.id, hall.primaryImage, updatedSecondary);
       }
+    } catch (err) {
+      console.error('Error compressing added photo:', err);
+    } finally {
       setUploadingState(null);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleRemoveSecondaryPhoto = async (hall: Hall, index: number) => {
@@ -684,7 +688,7 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
                     <div key={hall.id} className="p-4 rounded-2xl bg-stone-950 border border-stone-800 space-y-3">
                       <div className="flex items-center justify-between border-b border-stone-800 pb-2">
                         <div className="flex items-center space-x-2">
-                          <img src={hall.primaryImage} alt={hall.name} referrerPolicy="no-referrer" className="w-10 h-10 rounded-lg object-cover" />
+                          <img src={cleanImageUrl(hall.primaryImage, hall.id.includes('grand') ? '/images/hall_alpha.jpg' : '/images/hall_b_panoramic.jpg')} alt={hall.name} referrerPolicy="no-referrer" className="w-10 h-10 rounded-lg object-cover" />
                           <div>
                             <h5 className="font-serif font-bold text-white text-sm">{hall.name}</h5>
                             <span className="text-[10px] text-stone-400">Date: {inspectorDate}</span>
@@ -845,7 +849,7 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
                       {/* Image Preview */}
                       <div className="relative aspect-video rounded-xl overflow-hidden border border-stone-700 bg-stone-900 group">
                         <img 
-                          src={hall.primaryImage} 
+                          src={cleanImageUrl(hall.primaryImage, hall.id.includes('grand') ? '/images/hall_alpha.jpg' : '/images/hall_b_panoramic.jpg')} 
                           alt={`${hall.name} Cover`}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
                         />

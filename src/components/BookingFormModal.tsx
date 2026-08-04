@@ -5,8 +5,9 @@ import {
   ChevronLeft, ChevronRight, CalendarDays, Receipt, Printer, MessageCircle, Send
 } from 'lucide-react';
 import { HALLS_DATA, ADDON_OPTIONS } from '../data/hallsData';
+import { cleanImageUrl } from '../utils/imageUtils';
 import { HallId, TimeSlot, BookingRequest, NotificationItem } from '../types';
-import { doBookingsOverlap, calculateBookingHours } from '../utils/availability';
+import { doBookingsOverlap, calculateBookingHours, isWednesdayDate } from '../utils/availability';
 import { BookingTicketModal } from './BookingTicketModal';
 
 interface BookingFormModalProps {
@@ -413,7 +414,7 @@ _Sent via I-Madina Event Space Website_`;
                           : 'bg-white border-stone-200 hover:border-stone-300'
                       }`}
                     >
-                      <img src={hall.primaryImage} alt={hall.name} referrerPolicy="no-referrer" className="w-16 h-16 rounded-xl object-cover shrink-0" />
+                      <img src={cleanImageUrl(hall.primaryImage, hall.id.includes('grand') ? '/images/hall_alpha.jpg' : '/images/hall_b_panoramic.jpg')} alt={hall.name} referrerPolicy="no-referrer" className="w-16 h-16 rounded-xl object-cover shrink-0" />
                       <div>
                         <div className="flex items-center justify-between">
                           <h4 className="font-serif font-bold text-stone-900 text-sm">{hall.name}</h4>
@@ -471,9 +472,15 @@ _Sent via I-Madina Event Space Website_`;
                       onChange={e => handleTimeSlotChange(e.target.value as TimeSlot)}
                       className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-stone-900 text-xs font-semibold focus:border-amber-500 focus:outline-none"
                     >
-                      <option value="morning">Half Day - Morning (09:00 - 13:00 / 9:00 AM - 1:00 PM) • RM {currentHall.halfDayRate}</option>
-                      <option value="afternoon">Half Day - Afternoon (14:00 - 18:00 / 2:00 PM - 6:00 PM) • RM {currentHall.halfDayRate}</option>
-                      <option value="fullday">Full Day Package (09:00 - 18:00 / 9:00 AM - 6:00 PM) • RM {currentHall.fullDayRate}</option>
+                      <option value="morning" disabled={isWednesdayDate(eventDate)}>
+                        Half Day - Morning (09:00 - 13:00 / 9:00 AM - 1:00 PM) {isWednesdayDate(eventDate) ? '• 🔒 Reserved Every Wednesday' : `• RM ${currentHall.halfDayRate}`}
+                      </option>
+                      <option value="afternoon">
+                        Half Day - Afternoon (14:00 - 18:00 / 2:00 PM - 6:00 PM) • RM {currentHall.halfDayRate}
+                      </option>
+                      <option value="fullday" disabled={isWednesdayDate(eventDate)}>
+                        Full Day Package (09:00 - 18:00 / 9:00 AM - 6:00 PM) {isWednesdayDate(eventDate) ? '• 🔒 Wednesday Morning Reserved' : `• RM ${currentHall.fullDayRate}`}
+                      </option>
                     </select>
                   </div>
 
@@ -651,8 +658,10 @@ _Sent via I-Madina Event Space Website_`;
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10px]">
                   {(['morning', 'afternoon', 'fullday'] as TimeSlot[]).map(st => {
+                    const isWed = isWednesdayDate(eventDate);
+                    const isWedBlocked = isWed && (st === 'morning' || st === 'fullday');
                     const status = checkSlotOverlap(st);
-                    const isConf = !!status.confirmedMatch;
+                    const isConf = !!status.confirmedMatch || isWedBlocked;
                     const isPend = !!status.pendingMatch;
                     const isSelectedSlot = timeSlot === st;
                     const slotLabel = st === 'morning' ? 'Morning (9am - 1pm)' : st === 'afternoon' ? 'Afternoon (2pm - 6pm)' : 'Full Day (9am - 6pm)';
@@ -660,18 +669,22 @@ _Sent via I-Madina Event Space Website_`;
                     return (
                       <div 
                         key={st}
-                        onClick={() => handleTimeSlotChange(st)}
-                        className={`cursor-pointer p-2.5 rounded-xl border flex flex-col justify-between transition-all ${
-                          isSelectedSlot ? 'ring-2 ring-amber-500 font-bold shadow-xs' : ''
+                        onClick={() => {
+                          if (!isWedBlocked) handleTimeSlotChange(st);
+                        }}
+                        className={`p-2.5 rounded-xl border flex flex-col justify-between transition-all ${
+                          isWedBlocked ? 'opacity-85 bg-amber-100 border-amber-300 text-amber-900 cursor-not-allowed' : 'cursor-pointer'
                         } ${
-                          isConf ? 'bg-red-100 border-red-300 text-red-900' :
-                          isPend ? 'bg-amber-100 border-amber-300 text-amber-900' :
-                          'bg-emerald-50 border-emerald-200 text-emerald-800'
+                          isSelectedSlot && !isWedBlocked ? 'ring-2 ring-amber-500 font-bold shadow-xs' : ''
+                        } ${
+                          !isWedBlocked && isConf ? 'bg-red-100 border-red-300 text-red-900' :
+                          !isWedBlocked && isPend ? 'bg-amber-100 border-amber-300 text-amber-900' :
+                          !isWedBlocked ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : ''
                         }`}
                       >
                         <span className="font-bold text-xs">{slotLabel}</span>
                         <span className="font-medium mt-1">
-                          {isConf ? '🛑 RESERVED' : isPend ? '⚠️ REQUESTED' : '✓ AVAILABLE'}
+                          {isWedBlocked ? '🔒 RESERVED (Wed 9am-1pm)' : isConf ? '🛑 RESERVED' : isPend ? '⚠️ REQUESTED' : '✓ AVAILABLE'}
                         </span>
                       </div>
                     );

@@ -50,11 +50,11 @@ export const HallCard: React.FC<HallCardProps> = ({ hall, onBookHall, onViewFloo
 
   const getImageLabel = (url: string, idx: number): string => {
     const lower = url.toLowerCase();
-    if (lower.includes('panoramic')) return 'Panoramic View';
+    if (lower.includes('panoramic')) return hall.id === 'hall-b' ? 'Full Hall B • Sides A + B' : 'Panoramic View';
     if (lower.includes('hall_alpha2') || lower.includes('hall alpha 2')) return 'Photo 2';
     if (lower.includes('hall alpha') || lower.includes('hall_alpha')) return 'Alpha Main';
-    if (lower.includes('hall b 1') || lower.includes('hall_b_1') || lower.includes('view_one') || lower.includes('view_1')) return 'Hall View 1';
-    if (lower.includes('hall b 2') || lower.includes('hall_b_2') || lower.includes('view_two') || lower.includes('view_2')) return 'Hall View 2';
+    if (lower.includes('hall b 1') || lower.includes('hall_b_1') || lower.includes('view_one') || lower.includes('view_1')) return 'Hall B • Side A';
+    if (lower.includes('hall b 2') || lower.includes('hall_b_2') || lower.includes('view_two') || lower.includes('view_2')) return 'Hall B • Side B';
     if (lower.includes('surau')) return 'Surau Facility';
     return `Photo ${idx + 1}`;
   };

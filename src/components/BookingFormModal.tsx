@@ -501,18 +501,24 @@ _Sent via I-Madina Event Space Website_`;
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {([
-                    ['side-a', 'Side A', 'RM200 half day • RM400 full day'],
-                    ['side-b', 'Side B', 'RM200 half day • RM400 full day'],
-                    ['full', 'Full Hall', 'RM400 half day • RM800 full day']
-                  ] as const).map(([value, label, price]) => (
+                    ['side-a', 'Side A', 'Hall View 1', '/images/hall_b_view_one.jpeg', 'RM200 half day • RM400 full day'],
+                    ['side-b', 'Side B', 'Hall View 2', '/images/hall_b_view_two.jpeg', 'RM200 half day • RM400 full day'],
+                    ['full', 'Full Hall', 'Sides A + B', '/images/hall_b_panoramic.jpeg', 'RM400 half day • RM800 full day']
+                  ] as const).map(([value, label, viewLabel, imageUrl, price]) => (
                     <button
                       key={value}
                       type="button"
                       onClick={() => setHallSection(value)}
-                      className={`rounded-xl border p-3 text-left transition-all ${hallSection === value ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-500/20' : 'border-stone-200 bg-white hover:border-stone-400'}`}
+                      className={`overflow-hidden rounded-xl border text-left transition-all ${hallSection === value ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-500/20' : 'border-stone-200 bg-white hover:border-stone-400'}`}
                     >
-                      <span className="block text-xs font-bold text-stone-900">{label}</span>
-                      <span className="block mt-1 text-[10px] text-stone-600">{price}</span>
+                      <span className="relative block aspect-video bg-stone-900">
+                        <img src={imageUrl} alt={`Hall B ${label} - ${viewLabel}`} className="h-full w-full object-cover" />
+                        <span className="absolute inset-x-0 bottom-0 bg-stone-950/85 px-2 py-1 text-[10px] font-bold text-white">{viewLabel} = {label}</span>
+                      </span>
+                      <span className="block p-3">
+                        <span className="block text-xs font-bold text-stone-900">{label}</span>
+                        <span className="block mt-1 text-[10px] text-stone-600">{price}</span>
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -523,7 +529,7 @@ _Sent via I-Madina Event Space Website_`;
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-amber-700 mb-2">
-                  2. Select Date & Package
+                  {selectedHallId === 'hall-b' ? '3' : '2'}. Select Date & Package
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>

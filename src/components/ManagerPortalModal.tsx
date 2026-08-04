@@ -996,7 +996,7 @@ export const ManagerPortalModal: React.FC<ManagerPortalModalProps> = ({
                         const isView2 = imgUrl.toLowerCase().includes('view_two') || imgUrl.toLowerCase().includes('view_2') || imgUrl.toLowerCase().includes('hall_b_2');
                         const isSurau = imgUrl.toLowerCase().includes('surau');
                         
-                        const labelText = isView1 ? 'View 1 (Tables & Mics)' : isView2 ? 'View 2 (Lounge & Sofas)' : isSurau ? 'Surau Facility' : `Gallery View ${idx + 1}`;
+                        const labelText = isView1 ? 'Side A (Hall View 1)' : isView2 ? 'Side B (Hall View 2)' : isSurau ? 'Surau Facility' : `Gallery View ${idx + 1}`;
 
                         return (
                           <div key={`${imgUrl}-${idx}`} className="p-3 rounded-xl bg-stone-900 border border-stone-800 space-y-3 flex flex-col justify-between">

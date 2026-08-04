@@ -14,6 +14,7 @@ import { Footer } from './components/Footer';
 
 import { HALLS_DATA } from './data/hallsData';
 import { cleanImageUrl } from './utils/imageUtils';
+import { safeFetchJson } from './utils/apiUtils';
 import { Hall, HallId, BookingRequest, NotificationItem, BookingStatus, PaymentStatus } from './types';
 import { Bell } from 'lucide-react';
 
@@ -52,32 +53,27 @@ export default function App() {
   const fetchData = async () => {
     try {
       const [bRes, nRes, hRes] = await Promise.all([
-        fetch('/api/bookings'),
-        fetch('/api/notifications'),
-        fetch('/api/halls')
+        safeFetchJson('/api/bookings'),
+        safeFetchJson('/api/notifications'),
+        safeFetchJson('/api/halls')
       ]);
 
-      if (bRes.ok) {
-        const bData = await bRes.json();
-        setBookings(bData.bookings || []);
+      if (bRes.ok && bRes.data) {
+        setBookings(bRes.data.bookings || []);
       }
 
-      if (nRes.ok) {
-        const nData = await nRes.json();
-        setNotifications(nData.notifications || []);
-        setUnreadCount(nData.unreadCount || 0);
+      if (nRes.ok && nRes.data) {
+        setNotifications(nRes.data.notifications || []);
+        setUnreadCount(nRes.data.unreadCount || 0);
       }
 
-      if (hRes.ok) {
-        const hData = await hRes.json();
-        if (hData.halls && Array.isArray(hData.halls)) {
-          const sanitizedHalls = hData.halls.map((hall: Hall) => ({
-            ...hall,
-            primaryImage: cleanImageUrl(hall.primaryImage, hall.id.includes('grand') ? '/images/hall_alpha.jpeg' : '/images/hall_b_panoramic.jpeg'),
-            secondaryImages: (hall.secondaryImages || []).map((img: string) => cleanImageUrl(img, '/images/surau.jpeg'))
-          }));
-          setHalls(sanitizedHalls);
-        }
+      if (hRes.ok && hRes.data && Array.isArray(hRes.data.halls)) {
+        const sanitizedHalls = hRes.data.halls.map((hall: Hall) => ({
+          ...hall,
+          primaryImage: cleanImageUrl(hall.primaryImage, hall.id.includes('grand') ? '/images/hall_alpha.jpeg' : '/images/hall_b_panoramic.jpeg'),
+          secondaryImages: (hall.secondaryImages || []).map((img: string) => cleanImageUrl(img, '/images/surau.jpeg'))
+        }));
+        setHalls(sanitizedHalls);
       }
     } catch (err) {
       console.error('Failed to fetch initial data:', err);
@@ -90,13 +86,12 @@ export default function App() {
 
   const handleUpdateHallImages = async (hallId: string, primaryImage?: string, secondaryImages?: string[]) => {
     try {
-      const res = await fetch(`/api/halls/${hallId}/images`, {
+      const { ok, data } = await safeFetchJson(`/api/halls/${hallId}/images`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ primaryImage, secondaryImages })
       });
-      const data = await res.json();
-      if (res.ok && data.halls) {
+      if (ok && data?.halls) {
         setHalls(data.halls);
         setToastAlert({
           title: 'Hall Photos Updated Live',
@@ -111,11 +106,10 @@ export default function App() {
 
   const handleResetHallImages = async (hallId: string) => {
     try {
-      const res = await fetch(`/api/halls/${hallId}/images/reset`, {
+      const { ok, data } = await safeFetchJson(`/api/halls/${hallId}/images/reset`, {
         method: 'POST'
       });
-      const data = await res.json();
-      if (res.ok && data.halls) {
+      if (ok && data?.halls) {
         setHalls(data.halls);
         setToastAlert({
           title: 'Hall Photos Reset',
@@ -153,7 +147,7 @@ export default function App() {
 
   const handleMarkNotificationsRead = async () => {
     try {
-      await fetch('/api/notifications/mark-read', { method: 'POST' });
+      await safeFetchJson('/api/notifications/mark-read', { method: 'POST' });
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (err) {
@@ -163,22 +157,20 @@ export default function App() {
 
   const handleUpdateStatus = async (bookingId: string, status: BookingStatus) => {
     try {
-      const res = await fetch(`/api/bookings/${bookingId}`, {
+      const { ok, status: statusCode, data } = await safeFetchJson(`/api/bookings/${bookingId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
       });
 
-      const data = await res.json();
-
-      if (res.ok && data.success) {
+      if (ok && data?.success) {
         fetchData();
-      } else if (res.status === 409 || data.failsafeTriggered) {
+      } else if (statusCode === 409 || data?.failsafeTriggered) {
         setFailsafeModal({
           isOpen: true,
           title: 'DOUBLE-BOOKING FAILSAFE ACTIVATED',
-          message: data.error || 'Cannot approve booking because another booking is ALREADY CONFIRMED for this venue, date, and time slot.',
-          conflictingBooking: data.conflictingBooking
+          message: data?.error || 'Cannot approve booking because another booking is ALREADY CONFIRMED for this venue, date, and time slot.',
+          conflictingBooking: data?.conflictingBooking
         });
       }
     } catch (err) {
@@ -198,27 +190,25 @@ export default function App() {
     }
   ) => {
     try {
-      const res = await fetch(`/api/bookings/${bookingId}/payment`, {
+      const { ok, status: statusCode, data } = await safeFetchJson(`/api/bookings/${bookingId}/payment`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(paymentData)
       });
 
-      const data = await res.json();
-
-      if (res.ok && data.success) {
+      if (ok && data?.success) {
         fetchData();
         setToastAlert({
           title: 'Payment Confirmed & Recorded',
           message: `Payment status updated to "${paymentData.paymentStatus.toUpperCase()}". Receipt: ${data.booking?.paymentReceiptRef || 'Generated'}`
         });
         setTimeout(() => setToastAlert(null), 5000);
-      } else if (res.status === 409 || data.failsafeTriggered) {
+      } else if (statusCode === 409 || data?.failsafeTriggered) {
         setFailsafeModal({
           isOpen: true,
           title: 'DOUBLE-BOOKING FAILSAFE ACTIVATED',
-          message: data.error || 'Payment recorded, but auto-approval was blocked because another booking is ALREADY CONFIRMED for this slot.',
-          conflictingBooking: data.conflictingBooking
+          message: data?.error || 'Payment recorded, but auto-approval was blocked because another booking is ALREADY CONFIRMED for this slot.',
+          conflictingBooking: data?.conflictingBooking
         });
         fetchData();
       }
@@ -229,8 +219,8 @@ export default function App() {
 
   const handleDeleteBooking = async (bookingId: string) => {
     try {
-      const res = await fetch(`/api/bookings/${bookingId}`, { method: 'DELETE' });
-      if (res.ok) {
+      const { ok } = await safeFetchJson(`/api/bookings/${bookingId}`, { method: 'DELETE' });
+      if (ok) {
         setBookings(prev => prev.filter(b => b.id !== bookingId));
       }
     } catch (err) {

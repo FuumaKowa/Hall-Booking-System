@@ -2,5 +2,5 @@
   "name": "I-Madina Event Space",
   "description": "Affordable, comfortable and fully equipped spaces for meetings, classes, seminars and private gatherings at I-Madina Event Space.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": []
 }

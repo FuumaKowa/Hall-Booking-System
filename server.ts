@@ -2,45 +2,12 @@ import express from 'express';
 import 'dotenv/config';
 import path from 'path';
 import fs from 'fs';
-import { createServer as createViteServer } from 'vite';
-import { initializeApp, getApps, applicationDefault, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { randomUUID } from 'node:crypto';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { HALLS_DATA, ADDON_OPTIONS } from './src/data/hallsData.js';
-
-// Load Firebase Config
-let firebaseConfig: any = {};
-try {
-  const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
-  if (fs.existsSync(configPath)) {
-    firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-  }
-} catch (e) {
-  console.error('Failed to load firebase-applet-config.json', e);
-}
-
-const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
-  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON)
-  : undefined;
-const firebaseApp = getApps().length === 0
-  ? initializeApp({
-      credential: serviceAccount ? cert(serviceAccount) : applicationDefault(),
-      projectId: firebaseConfig.projectId
-    })
-  : getApps()[0];
-
-const db = firebaseConfig.firestoreDatabaseId 
-  ? getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId) 
-  : getFirestore(firebaseApp);
-const firestoreEnabled = process.env.DISABLE_FIRESTORE !== 'true';
+import { database, databaseEnabled } from './src/db/client.js';
+import { bookingsTable, hallImagesTable, notificationsTable } from './src/db/schema.js';
 const PORT = Number(process.env.PORT) || 3000;
-
-// Small adapters keep the existing modular-style calls while using the trusted
-// Admin SDK, which is not governed by browser Firestore security rules.
-const collection = (_database: typeof db, name: string) => db.collection(name);
-const doc = (_database: typeof db, collectionName: string, id: string) => db.collection(collectionName).doc(id);
-const getDocs = (reference: FirebaseFirestore.CollectionReference) => reference.get();
-const setDoc = (reference: FirebaseFirestore.DocumentReference, value: unknown) => reference.set(value as FirebaseFirestore.DocumentData);
-const deleteDoc = (reference: FirebaseFirestore.DocumentReference) => reference.delete();
 
 interface BookingRecord {
   id: string;
@@ -377,88 +344,132 @@ function calculateBookingTotal(body: Record<string, unknown>, hall: (typeof HALL
 
 let store = loadData();
 
-async function syncFromFirestore() {
-  if (!firestoreEnabled) return;
-  try {
-    const bookingsSnap = await getDocs(collection(db, 'bookings'));
-    const notifsSnap = await getDocs(collection(db, 'notifications'));
+async function syncFromDatabase() {
+  if (!databaseEnabled || !database) return;
+  const [bookingRows, notificationRows, imageRows] = await Promise.all([
+    database.select().from(bookingsTable).orderBy(desc(bookingsTable.createdAt)),
+    database.select().from(notificationsTable).orderBy(desc(notificationsTable.createdAt)),
+    database.select().from(hallImagesTable),
+  ]);
+  store.bookings = bookingRows.map(row => row.data as unknown as BookingRecord);
+  store.notifications = notificationRows.map(row => row.data as unknown as NotificationRecord);
+  customHallImagesMap = Object.fromEntries(
+    imageRows.map(row => [row.hallId, row.data as unknown as CustomHallImages])
+  );
+  console.log(`[Neon Postgres] Synced ${store.bookings.length} bookings and ${store.notifications.length} notifications.`);
+}
 
-    if (bookingsSnap.empty) {
-      console.log('[Firestore Database] Initializing & seeding Firestore collections...');
-      for (const b of sampleBookings) {
-        await setDoc(doc(db, 'bookings', b.id), b);
-      }
-      for (const n of sampleNotifications) {
-        await setDoc(doc(db, 'notifications', n.id), n);
-      }
-      store.bookings = [...sampleBookings];
-      store.notifications = [...sampleNotifications];
-    } else {
-      const fetchedBookings: BookingRecord[] = [];
-      bookingsSnap.forEach(d => fetchedBookings.push(d.data() as BookingRecord));
-      
-      const fetchedNotifs: NotificationRecord[] = [];
-      notifsSnap.forEach(d => fetchedNotifs.push(d.data() as NotificationRecord));
-
-      fetchedBookings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      fetchedNotifs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-      store.bookings = fetchedBookings;
-      store.notifications = fetchedNotifs;
-      console.log(`[Firestore Database] Active! Synced ${store.bookings.length} bookings and ${store.notifications.length} notifications from Cloud Firestore.`);
-    }
-
-    try {
-      const imagesSnap = await getDocs(collection(db, 'hall_images'));
-      imagesSnap.forEach(d => {
-        customHallImagesMap[d.id] = d.data() as CustomHallImages;
-      });
-      if (customHallImagesMap['hall-alpha']) {
-        const currentSec = customHallImagesMap['hall-alpha'].secondaryImages || [];
-        if (currentSec.includes('/images/hall_alpha.jpeg') || !currentSec.some(img => img.includes('hall_alpha2'))) {
-          customHallImagesMap['hall-alpha'].secondaryImages = currentSec.map(img => img === '/images/hall_alpha.jpeg' ? '/images/hall_alpha2.jpeg' : img);
-          if (!customHallImagesMap['hall-alpha'].secondaryImages.some(img => img.includes('hall_alpha2'))) {
-            customHallImagesMap['hall-alpha'].secondaryImages.unshift('/images/hall_alpha2.jpeg');
-          }
-          setDoc(doc(db, 'hall_images', 'hall-alpha'), customHallImagesMap['hall-alpha']).catch(() => {});
-        }
-      }
-      saveHallImages();
-    } catch (e) {
-      console.error('[Firestore] Error syncing hall_images:', e);
-    }
-
+async function saveBookingToDatabase(booking: BookingRecord) {
+  if (!databaseEnabled || !database) {
     saveData(store.bookings, store.notifications);
-  } catch (err) {
-    console.error('[Firestore Database] Error syncing with Cloud Firestore:', err);
+    return;
   }
+  await database.insert(bookingsTable).values({
+    id: booking.id,
+    referenceNumber: booking.referenceNumber,
+    hallId: booking.hallId,
+    eventDate: booking.eventDate,
+    status: booking.status,
+    createdAt: new Date(booking.createdAt),
+    data: booking as unknown as Record<string, unknown>,
+  }).onConflictDoUpdate({
+    target: bookingsTable.id,
+    set: {
+      referenceNumber: booking.referenceNumber,
+      hallId: booking.hallId,
+      eventDate: booking.eventDate,
+      status: booking.status,
+      data: booking as unknown as Record<string, unknown>,
+    },
+  });
 }
 
-async function saveBookingToFirestore(booking: BookingRecord) {
-  if (!firestoreEnabled) return;
-  try {
-    await setDoc(doc(db, 'bookings', booking.id), booking);
-  } catch (e) {
-    console.error('[Firestore] Error saving booking:', e);
+async function saveNotificationToDatabase(notification: NotificationRecord) {
+  if (!databaseEnabled || !database) {
+    saveData(store.bookings, store.notifications);
+    return;
   }
+  await database.insert(notificationsTable).values({
+    id: notification.id,
+    bookingId: notification.bookingId,
+    createdAt: new Date(notification.timestamp),
+    data: notification as unknown as Record<string, unknown>,
+  }).onConflictDoUpdate({
+    target: notificationsTable.id,
+    set: { data: notification as unknown as Record<string, unknown> },
+  });
 }
 
-async function saveNotifToFirestore(notif: NotificationRecord) {
-  if (!firestoreEnabled) return;
-  try {
-    await setDoc(doc(db, 'notifications', notif.id), notif);
-  } catch (e) {
-    console.error('[Firestore] Error saving notification:', e);
+async function persistNewBooking(
+  booking: BookingRecord,
+  notification: NotificationRecord,
+): Promise<BookingRecord | undefined> {
+  if (!databaseEnabled || !database) {
+    await saveBookingToDatabase(booking);
+    await saveNotificationToDatabase(notification);
+    return undefined;
   }
+
+  return database.transaction(async tx => {
+    // Serialize reservations for one hall/date across every Vercel instance.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${booking.hallId}:${booking.eventDate}`}))`);
+    const rows = await tx.select().from(bookingsTable).where(and(
+      eq(bookingsTable.hallId, booking.hallId),
+      eq(bookingsTable.eventDate, booking.eventDate),
+    ));
+    const conflict = rows
+      .map(row => row.data as unknown as BookingRecord)
+      .find(existing => existing.status !== 'declined' && checkBookingOverlap(booking, existing));
+    if (conflict) return conflict;
+
+    await tx.insert(bookingsTable).values({
+      id: booking.id,
+      referenceNumber: booking.referenceNumber,
+      hallId: booking.hallId,
+      eventDate: booking.eventDate,
+      status: booking.status,
+      createdAt: new Date(booking.createdAt),
+      data: booking as unknown as Record<string, unknown>,
+    });
+    await tx.insert(notificationsTable).values({
+      id: notification.id,
+      bookingId: notification.bookingId,
+      createdAt: new Date(notification.timestamp),
+      data: notification as unknown as Record<string, unknown>,
+    });
+    return undefined;
+  });
 }
 
-async function deleteBookingFromFirestore(id: string) {
-  if (!firestoreEnabled) return;
-  try {
-    await deleteDoc(doc(db, 'bookings', id));
-  } catch (e) {
-    console.error('[Firestore] Error deleting booking:', e);
+async function saveHallImagesToDatabase(hallId: string) {
+  if (!databaseEnabled || !database) {
+    saveHallImages();
+    return;
   }
+  const value = customHallImagesMap[hallId];
+  if (!value) {
+    await database.delete(hallImagesTable).where(eq(hallImagesTable.hallId, hallId));
+    return;
+  }
+  await database.insert(hallImagesTable).values({
+    hallId,
+    data: value as unknown as Record<string, unknown>,
+    updatedAt: new Date(),
+  }).onConflictDoUpdate({
+    target: hallImagesTable.hallId,
+    set: { data: value as unknown as Record<string, unknown>, updatedAt: new Date() },
+  });
+}
+
+async function deleteBookingFromDatabase(id: string) {
+  if (!databaseEnabled || !database) {
+    saveData(store.bookings, store.notifications);
+    return;
+  }
+  await database.transaction(async tx => {
+    await tx.delete(notificationsTable).where(eq(notificationsTable.bookingId, id));
+    await tx.delete(bookingsTable).where(eq(bookingsTable.id, id));
+  });
 }
 
 function isWednesdayDate(dateStr?: string): boolean {
@@ -541,6 +552,16 @@ function createApp() {
     res.json({ success: true });
   });
 
+  const requirePersistentDatabase: express.RequestHandler = (_req, res, next) => {
+    if (process.env.VERCEL && !databaseEnabled) {
+      return res.status(503).json({ error: 'DATABASE_URL is not configured for this deployment.' });
+    }
+    next();
+  };
+  app.use('/api/bookings', requirePersistentDatabase);
+  app.use('/api/notifications', requirePersistentDatabase);
+  app.use('/api/halls/:hallId/images', requirePersistentDatabase);
+
   // Static uploads serving
   app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
   app.use('/images', express.static(path.join(process.cwd(), 'public', 'images')));
@@ -548,7 +569,8 @@ function createApp() {
   // API Routes
   
   // 1. Get Hall details & add-on options
-  app.get('/api/halls', (req, res) => {
+  app.get('/api/halls', async (_req, res) => {
+    await syncFromDatabase();
     res.json({
       halls: getEffectiveHalls(),
       addons: ADDON_OPTIONS
@@ -557,7 +579,7 @@ function createApp() {
 
   // 1b. Update Hall Images (Admin Site Upload / Replace)
   app.post('/api/halls/:hallId/images', requireManager, async (req, res) => {
-    await syncFromFirestore();
+    await syncFromDatabase();
     const { hallId } = req.params;
     const { primaryImage, secondaryImages } = req.body;
 
@@ -583,14 +605,7 @@ function createApp() {
       customHallImagesMap[hallId].secondaryImages = processedSecondary;
     }
 
-    saveHallImages();
-
-    // Sync custom images to Firestore if available
-    try {
-      if (firestoreEnabled) await setDoc(doc(db, 'hall_images', hallId), customHallImagesMap[hallId]);
-    } catch (e) {
-      console.error('[Firestore] Error saving hall images:', e);
-    }
+    await saveHallImagesToDatabase(hallId);
 
     console.log(`[ADMIN IMAGE UPDATED] Hall: ${hallId} | Primary updated: ${!!primaryImage} | Secondary count: ${secondaryImages?.length}`);
 
@@ -603,16 +618,10 @@ function createApp() {
 
   // 1c. Reset Hall Images to Default
   app.post('/api/halls/:hallId/images/reset', requireManager, async (req, res) => {
-    await syncFromFirestore();
+    await syncFromDatabase();
     const { hallId } = req.params;
     delete customHallImagesMap[hallId];
-    saveHallImages();
-
-    try {
-      if (firestoreEnabled) await deleteDoc(doc(db, 'hall_images', hallId));
-    } catch (e) {
-      console.error('[Firestore] Error deleting custom hall images:', e);
-    }
+    await saveHallImagesToDatabase(hallId);
 
     res.json({
       success: true,
@@ -623,7 +632,7 @@ function createApp() {
 
   // 2. Get Bookings
   app.get('/api/bookings', async (req, res) => {
-    await syncFromFirestore();
+    await syncFromDatabase();
     const isManager = Boolean(process.env.MANAGER_PASSWORD) && req.get('x-manager-password') === process.env.MANAGER_PASSWORD;
     const bookings = isManager ? store.bookings : store.bookings.map(b => ({
       id: b.id,
@@ -641,7 +650,7 @@ function createApp() {
 
   // 2b. Failsafe Availability Checker Endpoint
   app.get('/api/availability/check', async (req, res) => {
-    await syncFromFirestore();
+    await syncFromDatabase();
     const { hallId, eventDate } = req.query as { hallId?: string; eventDate?: string };
     
     if (!hallId || !eventDate) {
@@ -669,7 +678,7 @@ function createApp() {
 
   // 3. Create New Customer Booking -> WITH DOUBLE BOOKING FAILSAFE
   app.post('/api/bookings', async (req, res) => {
-    await syncFromFirestore();
+    await syncFromDatabase();
     const body = req.body;
     
     if (!body.hallId || !body.customerName || !body.customerEmail || !body.eventDate) {
@@ -760,8 +769,8 @@ function createApp() {
 
     const hallName = hall.name;
 
-    const refNum = `BK-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-    const newBookingId = `b-${Date.now()}`;
+    const refNum = `BK-${new Date().getFullYear()}-${randomUUID().slice(0, 8).toUpperCase()}`;
+    const newBookingId = `b-${randomUUID()}`;
 
     const newBooking: BookingRecord = {
       id: newBookingId,
@@ -792,7 +801,7 @@ function createApp() {
     const messageText = `New booking submitted by ${newBooking.customerName} for ${newBooking.hallName} on ${newBooking.eventDate}. Estimated revenue: RM ${newBooking.estimatedTotal.toLocaleString()}`;
 
     const newNotification: NotificationRecord = {
-      id: `notif-${Date.now()}`,
+      id: `notif-${randomUUID()}`,
       bookingId: newBookingId,
       referenceNumber: refNum,
       type: 'NEW_BOOKING',
@@ -807,11 +816,16 @@ function createApp() {
       emailSentTo: 'wandaniel554@gmail.com (Hall Owner / Manager Email)'
     };
 
+    const transactionConflict = await persistNewBooking(newBooking, newNotification);
+    if (transactionConflict) {
+      return res.status(409).json({
+        success: false,
+        error: 'This hall was just reserved for the selected time. Please choose another date or time slot.',
+        failsafeTriggered: true,
+      });
+    }
     store.bookings.unshift(newBooking);
     store.notifications.unshift(newNotification);
-    saveData(store.bookings, store.notifications);
-    saveBookingToFirestore(newBooking);
-    saveNotifToFirestore(newNotification);
 
     console.log('====================================================');
     console.log(`[MANAGER INFORMED] Email sent to: wandaniel554@gmail.com`);
@@ -828,7 +842,7 @@ function createApp() {
 
   // 4. Update Booking Status (Manager Actions) -> WITH STRICT APPROVAL FAILSAFE
   app.patch('/api/bookings/:id', requireManager, async (req, res) => {
-    await syncFromFirestore();
+    await syncFromDatabase();
     const { id } = req.params;
     const { status } = req.body;
 
@@ -864,7 +878,7 @@ function createApp() {
     
     // Add status notification
     const notif: NotificationRecord = {
-      id: `notif-${Date.now()}`,
+      id: `notif-${randomUUID()}`,
       bookingId: store.bookings[bookingIndex].id,
       referenceNumber: store.bookings[bookingIndex].referenceNumber,
       type: 'STATUS_UPDATE',
@@ -880,9 +894,8 @@ function createApp() {
     };
 
     store.notifications.unshift(notif);
-    saveData(store.bookings, store.notifications);
-    saveBookingToFirestore(store.bookings[bookingIndex]);
-    saveNotifToFirestore(notif);
+    await saveBookingToDatabase(store.bookings[bookingIndex]);
+    await saveNotificationToDatabase(notif);
 
     res.json({
       success: true,
@@ -892,7 +905,7 @@ function createApp() {
 
   // 4b. Record / Confirm Payment for Booking (Admin Site)
   app.patch('/api/bookings/:id/payment', requireManager, async (req, res) => {
-    await syncFromFirestore();
+    await syncFromDatabase();
     const { id } = req.params;
     const { paymentStatus, paymentMethod, paidAmount, paymentReceiptRef, paymentNotes, autoApprove } = req.body;
 
@@ -931,7 +944,7 @@ function createApp() {
     booking.paymentStatus = paymentStatus || 'fully_paid';
     booking.paymentMethod = paymentMethod || 'Online Bank Transfer';
     booking.paidAmount = paidAmount !== undefined ? Number(paidAmount) : (paymentStatus === 'deposit_paid' ? booking.depositAmount : booking.estimatedTotal);
-    booking.paymentReceiptRef = paymentReceiptRef || `REC-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
+    booking.paymentReceiptRef = paymentReceiptRef || `REC-${new Date().getFullYear()}-${randomUUID().slice(0, 8).toUpperCase()}`;
     booking.paymentConfirmedAt = new Date().toISOString();
     if (paymentNotes !== undefined) booking.paymentNotes = paymentNotes;
 
@@ -942,7 +955,7 @@ function createApp() {
       : `⚠️ PAYMENT STATUS RESET`;
 
     const notif: NotificationRecord = {
-      id: `notif-${Date.now()}`,
+      id: `notif-${randomUUID()}`,
       bookingId: booking.id,
       referenceNumber: booking.referenceNumber,
       type: 'STATUS_UPDATE',
@@ -958,9 +971,8 @@ function createApp() {
     };
 
     store.notifications.unshift(notif);
-    saveData(store.bookings, store.notifications);
-    saveBookingToFirestore(booking);
-    saveNotifToFirestore(notif);
+    await saveBookingToDatabase(booking);
+    await saveNotificationToDatabase(notif);
 
     console.log(`[PAYMENT CONFIRMED] Booking ${booking.referenceNumber} | Paid: RM ${booking.paidAmount} (${booking.paymentStatus}) | Ref: ${booking.paymentReceiptRef}`);
 
@@ -974,7 +986,7 @@ function createApp() {
 
   // 5. Get Notifications
   app.get('/api/notifications', requireManager, async (req, res) => {
-    await syncFromFirestore();
+    await syncFromDatabase();
     res.json({
       notifications: store.notifications,
       unreadCount: store.notifications.filter(n => !n.read).length
@@ -983,23 +995,19 @@ function createApp() {
 
   // 6. Mark Notifications Read
   app.post('/api/notifications/mark-read', requireManager, async (req, res) => {
-    await syncFromFirestore();
+    await syncFromDatabase();
     store.notifications = store.notifications.map(n => ({ ...n, read: true }));
-    saveData(store.bookings, store.notifications);
-    for (const n of store.notifications) {
-      saveNotifToFirestore(n);
-    }
+    await Promise.all(store.notifications.map(saveNotificationToDatabase));
     res.json({ success: true, unreadCount: 0 });
   });
 
   // 7. Delete Booking
   app.delete('/api/bookings/:id', requireManager, async (req, res) => {
-    await syncFromFirestore();
+    await syncFromDatabase();
     const { id } = req.params;
     store.bookings = store.bookings.filter(b => b.id !== id);
     store.notifications = store.notifications.filter(n => n.bookingId !== id);
-    saveData(store.bookings, store.notifications);
-    deleteBookingFromFirestore(id);
+    await deleteBookingFromDatabase(id);
     res.json({ success: true });
   });
 
@@ -1025,6 +1033,11 @@ function createApp() {
     res.json({ reply });
   });
 
+  app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error('API request failed:', error);
+    res.status(500).json({ error: 'The server could not complete this request.' });
+  });
+
   if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
@@ -1040,8 +1053,9 @@ const app = createApp();
 
 if (!process.env.VERCEL) {
   void (async () => {
-    await syncFromFirestore();
+    await syncFromDatabase();
     if (process.env.NODE_ENV !== 'production') {
+      const { createServer: createViteServer } = await import('vite');
       const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
       app.use(vite.middlewares);
     }

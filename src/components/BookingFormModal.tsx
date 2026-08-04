@@ -103,7 +103,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
 
   const [allHallBookings, setAllHallBookings] = useState<BookingRequest[]>([]);
 
-  // Fetch real-time availability directly from Firestore & API whenever hall or date changes
+  // Fetch real-time availability from the server whenever hall or date changes
   useEffect(() => {
     let isMounted = true;
     setAvailabilityData(prev => ({ ...prev, loading: true }));

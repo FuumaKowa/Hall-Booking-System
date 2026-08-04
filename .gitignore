@@ -7,5 +7,6 @@ coverage/
 bookings_store.json
 hall_images_store.json
 public/uploads/
+.neon
 .env*
 !.env.example

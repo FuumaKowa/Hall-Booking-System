@@ -3,7 +3,6 @@ import 'dotenv/config';
 import path from 'path';
 import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
-import { GoogleGenAI } from '@google/genai';
 import { initializeApp, getApps, applicationDefault } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { HALLS_DATA, ADDON_OPTIONS } from './src/data/hallsData.js';
@@ -992,53 +991,26 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  // 8. Gemini AI Venue & Booking Assistant
-  app.post('/api/ai-assistant', async (req, res) => {
-    try {
-      const { userQuery, context } = req.body;
-      const apiKey = process.env.GEMINI_API_KEY;
+  // 8. Offline venue assistant (no external AI service required)
+  app.post('/api/ai-assistant', (req, res) => {
+    const query = String(req.body?.userQuery || '').toLowerCase();
+    let reply = 'We offer Alpha Hall (up to 53 guests) and Hall B (up to 31 guests). Both cost RM 40/hour, RM 149 half-day, or RM 299 full-day. Select “Book A Hall” to check a date and submit your request.';
 
-      if (!apiKey) {
-        return res.json({
-          reply: "I am your Nilai Harta Consultant Sdn Bhd Assistant! We offer Hall A (up to 30 pax, RM 60/hr) and Hall B (up to 35 pax, RM 75/hr). Both halls are fully equipped with normal whiteboard, prepared speaker & mic system, projector, air conditioning, high-speed Wi-Fi, pantry with water dispenser, clean toilets, and surau access. How can I help you book a hall today?"
-        });
-      }
-
-      const ai = new GoogleGenAI({ apiKey });
-      const prompt = `You are the friendly AI Concierge for "Nilai Harta Consultant Sdn Bhd".
-We offer EXACTLY 2 small, fully-equipped halls available for rental:
-1. Hall A:
-   - Capacity: Up to 30 pax (550 sq ft)
-   - Rates: RM 40/hr, RM 149 half-day, or RM 299 full-day
-   - Best for: Meetings, Public Talks, Classes & Workshops
-   - Key features: Normal Whiteboard, Speaker & Mic prepared, Normal Projector, Air Conditioning, High-Speed Wi-Fi, Pantry with Water Dispenser, Clean Toilets, and Surau (Prayer Room).
-
-2. Hall B:
-   - Capacity: Up to 35 pax (650 sq ft)
-   - Rates: RM 40/hr, RM 149 half-day, or RM 299 full-day
-   - Best for: Educational Classes, Training Workshops, Lectures, Public Talks & Exams
-   - Key features: Projector & 75" Smart TV, Speaker & Mic system, Whiteboards, Air Conditioning, High-Speed Wi-Fi, Pantry with Water Dispenser, Clean Toilets, and Surau Access.
-
-Important note: The currency is Ringgit Malaysia (RM). All prices are in RM.
-Customer query: "${userQuery}"
-Additional Context: ${context || 'General inquiry'}
-
-Provide a concise, helpful, professional response recommending the best hall or answering questions about booking, capacity, pricing (in RM), or equipment (projector, whiteboard, speaker/mic, air-con, Wi-Fi, pantry, surau, toilet). Keep response under 150 words.`;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt
-      });
-
-      res.json({
-        reply: response.text || "Thank you for reaching out! Let us know your preferred date, time slot, and guest count, and we will help reserve the ideal hall for your meeting, class, or talk."
-      });
-    } catch (err: any) {
-      console.error('Gemini AI Assistant error:', err);
-      res.json({
-        reply: "Our halls at Nilai Harta Consultant Sdn Bhd fit around 30 people and are fully equipped with whiteboard, speaker & mic, projector, air conditioning, Wi-Fi, pantry with water dispenser, clean toilets, and surau access (rates from RM 60/hr). Feel free to click 'Book A Hall' to submit a reservation!"
-      });
+    if (/price|rate|cost|berapa|harga/.test(query)) {
+      reply = 'Both halls cost RM 40 per hour, RM 149 for a half day, or RM 299 for a full day. Optional presenter cables and the flipchart set are RM 15 each; catering is quoted separately.';
+    } else if (/capacity|people|guest|pax|muat/.test(query)) {
+      reply = 'Alpha Hall accommodates up to 53 guests. Hall B accommodates up to 31 guests. Alpha Hall is the better choice for groups larger than 31.';
+    } else if (/facility|equipment|projector|microphone|wifi|surau|toilet/.test(query)) {
+      reply = 'The halls include air conditioning, microphones and speakers, presentation equipment, Wi-Fi, nearby toilets, and surau access. Alpha Hall includes a projector and television; Hall B also provides flexible dining and lounge seating.';
+    } else if (/available|availability|date|book|reserve/.test(query)) {
+      reply = 'Use “Book A Hall” and select your preferred date and time. The system checks existing reservations before accepting the request. Wednesday mornings from 9:00 AM to 1:00 PM are reserved.';
+    } else if (/hall b|event|gathering|dining/.test(query)) {
+      reply = 'Hall B is ideal for small gatherings, private meetings, dining setups, and networking events, with capacity for up to 31 guests.';
+    } else if (/alpha|seminar|class|training|workshop/.test(query)) {
+      reply = 'Alpha Hall is ideal for seminars, classes, workshops, training, and larger meetings, with capacity for up to 53 guests.';
     }
+
+    res.json({ reply });
   });
 
   // Vite middleware in dev mode

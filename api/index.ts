@@ -1,5 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import app from '../server';
+// Use the emitted .js extension for Node's strict ESM resolver. TypeScript and
+// Vercel trace this back to the source file at ../server.ts during the build.
+import app from '../server.js';
 
 export default function handler(req: IncomingMessage, res: ServerResponse) {
   try {

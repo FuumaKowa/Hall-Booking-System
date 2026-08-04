@@ -57,6 +57,11 @@ interface NotificationRecord {
   emailSentTo: string;
 }
 
+interface DataStore {
+  bookings: BookingRecord[];
+  notifications: NotificationRecord[];
+}
+
 const DATA_FILE = path.join(process.cwd(), 'bookings_store.json');
 const HALL_IMAGES_FILE = path.join(process.cwd(), 'hall_images_store.json');
 
@@ -328,11 +333,11 @@ const sampleNotifications: NotificationRecord[] = [
   }
 ];
 
-function loadData() {
+function loadData(): DataStore {
   try {
     if (fs.existsSync(DATA_FILE)) {
       const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-      const parsed = JSON.parse(raw);
+      const parsed = JSON.parse(raw) as Partial<DataStore>;
       return {
         bookings: parsed.bookings || sampleBookings,
         notifications: parsed.notifications || sampleNotifications
@@ -1025,7 +1030,7 @@ function createApp() {
       referenceNumber: booking.referenceNumber,
       type: 'STATUS_UPDATE',
       title: statusTitle,
-      message: `Payment of RM ${booking.paidAmount.toLocaleString()} (${booking.paymentStatus.toUpperCase().replace('_', ' ')}) recorded via ${booking.paymentMethod} for ${booking.customerName} (${booking.referenceNumber}). Receipt Ref: ${booking.paymentReceiptRef}`,
+      message: `Payment of RM ${booking.paidAmount.toLocaleString()} (${(booking.paymentStatus || 'unpaid').toUpperCase().replace('_', ' ')}) recorded via ${booking.paymentMethod} for ${booking.customerName} (${booking.referenceNumber}). Receipt Ref: ${booking.paymentReceiptRef}`,
       customerName: booking.customerName,
       hallName: booking.hallName,
       eventDate: booking.eventDate,

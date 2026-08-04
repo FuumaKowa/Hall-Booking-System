@@ -7,7 +7,7 @@ import {
 import { HALLS_DATA, ADDON_OPTIONS } from '../data/hallsData';
 import { cleanImageUrl } from '../utils/imageUtils';
 import { HallId, TimeSlot, BookingRequest, NotificationItem } from '../types';
-import { doBookingsOverlap, calculateBookingHours, isWednesdayDate } from '../utils/availability';
+import { doBookingsOverlap, calculateBookingHours, isWednesdayDate, getSameDayRestriction } from '../utils/availability';
 import { BookingTicketModal } from './BookingTicketModal';
 
 interface BookingFormModalProps {
@@ -25,9 +25,15 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
 }) => {
   const [selectedHallId, setSelectedHallId] = useState<HallId>(initialHallId);
   const [eventType, setEventType] = useState<string>('Corporate Meeting');
-  const [eventDate, setEventDate] = useState<string>(
-    initialDate || new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0]
-  );
+  const [eventDate, setEventDate] = useState<string>(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+    if (initialDate && initialDate >= todayStr) return initialDate;
+    return todayStr;
+  });
   const [timeSlot, setTimeSlot] = useState<TimeSlot>('morning');
   const [guestCount, setGuestCount] = useState<number>(20);
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
@@ -64,6 +70,23 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
   const handleTimeSlotChange = (newSlot: TimeSlot) => {
     setTimeSlot(newSlot);
   };
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const todayStr = `${year}-${month}-${day}`;
+  const dateRestriction = getSameDayRestriction(eventDate);
+
+  // Auto switch timeSlot if same day booking only permits afternoon
+  useEffect(() => {
+    const restriction = getSameDayRestriction(eventDate);
+    if (restriction.isToday && restriction.canBookSameDay) {
+      if (timeSlot !== 'afternoon') {
+        setTimeSlot('afternoon');
+      }
+    }
+  }, [eventDate]);
 
   const currentHall = HALLS_DATA.find(h => h.id === selectedHallId) || HALLS_DATA[0];
 
@@ -224,6 +247,20 @@ _Sent via I-Madina Event Space Website_`;
     e.preventDefault();
     if (!customerName || !customerEmail || !customerPhone || !eventDate) {
       setErrorMsg('Please complete all required customer details and date fields.');
+      return;
+    }
+
+    const restriction = getSameDayRestriction(eventDate);
+    if (restriction.isPast) {
+      setErrorMsg('Bookings for past dates are not allowed. Please select today or a future date.');
+      return;
+    }
+    if (!restriction.canBookSameDay) {
+      setErrorMsg('Same-day bookings for today are closed (must be booked before 10:00 AM). Please select a future date.');
+      return;
+    }
+    if (!restriction.allowedSlots.includes(timeSlot)) {
+      setErrorMsg('For same-day bookings placed before 10:00 AM, only the Afternoon slot (14:00 - 18:00 / 2:00 PM - 6:00 PM) is available.');
       return;
     }
 
@@ -443,10 +480,13 @@ _Sent via I-Madina Event Space Website_`;
                     <div className="relative">
                       <input 
                         type="date"
+                        min={todayStr}
                         value={eventDate}
                         onChange={e => {
-                          setEventDate(e.target.value);
-                          const parts = e.target.value.split('-').map(Number);
+                          const val = e.target.value;
+                          if (val && val < todayStr) return;
+                          setEventDate(val);
+                          const parts = val.split('-').map(Number);
                           if (parts.length === 3) setCalendarViewDate(new Date(parts[0], parts[1] - 1, 1));
                         }}
                         className="w-full bg-stone-50 border border-stone-300 rounded-xl pl-3 pr-10 py-2 text-stone-900 text-xs focus:border-amber-500 focus:outline-none"
@@ -470,16 +510,33 @@ _Sent via I-Madina Event Space Website_`;
                     <select
                       value={timeSlot}
                       onChange={e => handleTimeSlotChange(e.target.value as TimeSlot)}
-                      className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-stone-900 text-xs font-semibold focus:border-amber-500 focus:outline-none"
+                      disabled={!dateRestriction.canBookSameDay}
+                      className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-stone-900 text-xs font-semibold focus:border-amber-500 focus:outline-none disabled:opacity-60 disabled:bg-stone-100 cursor-pointer disabled:cursor-not-allowed"
                     >
-                      <option value="morning" disabled={isWednesdayDate(eventDate)}>
-                        Half Day - Morning (09:00 - 13:00 / 9:00 AM - 1:00 PM) {isWednesdayDate(eventDate) ? '• 🔒 Reserved Every Wednesday' : `• RM ${currentHall.halfDayRate}`}
+                      <option value="morning" disabled={isWednesdayDate(eventDate) || !dateRestriction.allowedSlots.includes('morning')}>
+                        Half Day - Morning (09:00 - 13:00 / 9:00 AM - 1:00 PM) {
+                          isWednesdayDate(eventDate) 
+                            ? '• 🔒 Reserved Every Wednesday' 
+                            : !dateRestriction.allowedSlots.includes('morning')
+                            ? '• 🔒 Not available for same-day booking'
+                            : `• RM ${currentHall.halfDayRate}`
+                        }
                       </option>
-                      <option value="afternoon">
-                        Half Day - Afternoon (14:00 - 18:00 / 2:00 PM - 6:00 PM) • RM {currentHall.halfDayRate}
+                      <option value="afternoon" disabled={!dateRestriction.allowedSlots.includes('afternoon')}>
+                        Half Day - Afternoon (14:00 - 18:00 / 2:00 PM - 6:00 PM) {
+                          !dateRestriction.allowedSlots.includes('afternoon')
+                            ? (dateRestriction.isToday ? '• 🔒 Same-day booking closed after 10 AM' : '• 🔒 Unavailable')
+                            : `• RM ${currentHall.halfDayRate}`
+                        }
                       </option>
-                      <option value="fullday" disabled={isWednesdayDate(eventDate)}>
-                        Full Day Package (09:00 - 18:00 / 9:00 AM - 6:00 PM) {isWednesdayDate(eventDate) ? '• 🔒 Wednesday Morning Reserved' : `• RM ${currentHall.fullDayRate}`}
+                      <option value="fullday" disabled={isWednesdayDate(eventDate) || !dateRestriction.allowedSlots.includes('fullday')}>
+                        Full Day Package (09:00 - 18:00 / 9:00 AM - 6:00 PM) {
+                          isWednesdayDate(eventDate) 
+                            ? '• 🔒 Wednesday Morning Reserved' 
+                            : !dateRestriction.allowedSlots.includes('fullday')
+                            ? '• 🔒 Not available for same-day booking'
+                            : `• RM ${currentHall.fullDayRate}`
+                        }
                       </option>
                     </select>
                   </div>
@@ -516,6 +573,27 @@ _Sent via I-Madina Event Space Website_`;
                     />
                   </div>
                 </div>
+
+                {/* Same-Day & Date Policy Banner */}
+                {dateRestriction.isToday && (
+                  <div className={`mt-3 p-3 rounded-xl border text-xs flex items-start gap-2.5 ${
+                    dateRestriction.canBookSameDay
+                      ? 'bg-amber-50 border-amber-300 text-amber-900'
+                      : 'bg-red-50 border-red-300 text-red-900'
+                  }`}>
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <span className="font-bold block">
+                        {dateRestriction.canBookSameDay ? 'Same-Day Booking Policy Active (Booked before 10:00 AM)' : 'Same-Day Booking Closed for Today'}
+                      </span>
+                      <span className="block text-[11px] leading-relaxed">
+                        {dateRestriction.canBookSameDay
+                          ? 'Today same-day bookings are permitted ONLY for the Afternoon slot (14:00 - 18:00 / 2:00 PM - 6:00 PM).'
+                          : 'Same-day reservations for today must be placed before 10:00 AM. Same-day booking is now closed for today. Please select a future date.'}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Interactive Calendar Picker Popup Grid */}
@@ -557,7 +635,6 @@ _Sent via I-Madina Event Space Website_`;
                       const month = calendarViewDate.getMonth();
                       const daysInMonth = new Date(year, month + 1, 0).getDate();
                       const firstDayIndex = new Date(year, month, 1).getDay();
-                      const todayStr = new Date().toISOString().split('T')[0];
 
                       const cells = [];
                       for (let i = 0; i < firstDayIndex; i++) {
@@ -570,6 +647,8 @@ _Sent via I-Madina Event Space Website_`;
                         const dateStr = `${year}-${mm}-${dd}`;
                         const isSelected = dateStr === eventDate;
                         const isToday = dateStr === todayStr;
+                        const isPast = dateStr < todayStr;
+                        const cellRestriction = getSameDayRestriction(dateStr);
 
                         const dayBookings = allHallBookings.filter(b => b.hallId === selectedHallId && b.eventDate === dateStr && b.status !== 'declined');
                         
@@ -582,7 +661,13 @@ _Sent via I-Madina Event Space Website_`;
                         const hasPending = dayBookings.some(b => b.status === 'pending');
 
                         let cellTitle = `${dateStr}: Open for booking`;
-                        if (isFullDayReserved) {
+                        if (isPast) {
+                          cellTitle = `${dateStr}: Past date (cannot be booked)`;
+                        } else if (isToday && !cellRestriction.canBookSameDay) {
+                          cellTitle = `${dateStr}: Same-day booking closed (after 10:00 AM cutoff)`;
+                        } else if (isToday && cellRestriction.canBookSameDay) {
+                          cellTitle = `${dateStr}: Today (Afternoon 14:00 - 18:00 slot ONLY)`;
+                        } else if (isFullDayReserved) {
                           cellTitle = `${dateStr}: Entire day fully reserved`;
                         } else if (hasConfirmed) {
                           cellTitle = `${dateStr}: ${confirmedSlots.map(s => s.toUpperCase()).join(', ')} reserved. Other slots AVAILABLE!`;
@@ -590,11 +675,15 @@ _Sent via I-Madina Event Space Website_`;
                           cellTitle = `${dateStr}: Pending request on file`;
                         }
 
+                        const isDisabled = isPast || (isToday && !cellRestriction.canBookSameDay);
+
                         cells.push(
                           <button
                             key={dateStr}
                             type="button"
+                            disabled={isDisabled}
                             onClick={() => {
+                              if (isDisabled) return;
                               setEventDate(dateStr);
                               setIsCalendarOpen(false);
                             }}
@@ -602,8 +691,12 @@ _Sent via I-Madina Event Space Website_`;
                             className={`h-10 rounded-lg text-xs font-semibold transition-all flex flex-col items-center justify-center relative ${
                               isSelected
                                 ? 'bg-amber-500 text-stone-950 font-bold shadow-md ring-2 ring-amber-400 scale-105'
+                                : isPast
+                                ? 'bg-stone-100 text-stone-300 border border-stone-200 cursor-not-allowed opacity-40 pointer-events-none select-none'
+                                : isToday && !cellRestriction.canBookSameDay
+                                ? 'bg-stone-100 text-stone-400 border border-stone-300 cursor-not-allowed opacity-60 pointer-events-none select-none'
                                 : isToday
-                                ? 'bg-stone-100 text-amber-700 border border-amber-400'
+                                ? 'bg-amber-50 text-amber-800 border-2 border-amber-500 hover:bg-amber-100'
                                 : isFullDayReserved
                                 ? 'bg-red-100 text-red-900 border border-red-300 hover:bg-red-200'
                                 : hasConfirmed
@@ -618,7 +711,7 @@ _Sent via I-Madina Event Space Website_`;
                               {isFullDayReserved && <span className="w-1.5 h-1.5 rounded-full bg-red-500" />}
                               {!isFullDayReserved && hasConfirmed && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
                               {!hasConfirmed && hasPending && <span className="w-1.5 h-1.5 rounded-full bg-stone-500" />}
-                              {isToday && !isSelected && !hasConfirmed && !hasPending && <span className="text-[7px] leading-none opacity-80 text-amber-700">Today</span>}
+                              {isToday && !isSelected && !hasConfirmed && !hasPending && <span className="text-[7px] leading-none font-bold text-amber-700">Today</span>}
                             </div>
                           </button>
                         );

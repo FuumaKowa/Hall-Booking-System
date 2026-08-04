@@ -593,6 +593,39 @@ async function startServer() {
       durationHours: body.durationHours || 5
     };
 
+    // Date & Same-day restriction check
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+
+    if (body.eventDate < todayStr) {
+      return res.status(400).json({
+        success: false,
+        error: 'Bookings for past dates are not allowed.',
+        failsafeTriggered: true
+      });
+    }
+
+    if (body.eventDate === todayStr) {
+      const currentHour = now.getHours();
+      if (currentHour >= 10) {
+        return res.status(400).json({
+          success: false,
+          error: 'Same-day bookings for today are closed (must be booked before 10:00 AM).',
+          failsafeTriggered: true
+        });
+      }
+      if (candidateBooking.timeSlot !== 'afternoon') {
+        return res.status(400).json({
+          success: false,
+          error: 'For same-day bookings placed before 10:00 AM, only the Afternoon slot (14:00 - 18:00 / 2:00 PM - 6:00 PM) is available.',
+          failsafeTriggered: true
+        });
+      }
+    }
+
     if (isWednesdayDate(body.eventDate)) {
       const slot = body.timeSlot || 'morning';
       let isWedOverlap = false;

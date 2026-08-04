@@ -169,13 +169,75 @@ export function doBookingsOverlap(
   return doRangesOverlap(rangeA, rangeB);
 }
 
+export interface SameDayRestriction {
+  isPast: boolean;
+  isToday: boolean;
+  canBookSameDay: boolean;
+  allowedSlots: TimeSlot[];
+  reason?: string;
+}
+
+export function getSameDayRestriction(dateStr: string, now = new Date()): SameDayRestriction {
+  if (!dateStr) {
+    return {
+      isPast: false,
+      isToday: false,
+      canBookSameDay: true,
+      allowedSlots: ['morning', 'afternoon', 'fullday', 'evening']
+    };
+  }
+
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const todayStr = `${year}-${month}-${day}`;
+
+  if (dateStr < todayStr) {
+    return {
+      isPast: true,
+      isToday: false,
+      canBookSameDay: false,
+      allowedSlots: [],
+      reason: 'Bookings for past dates are not allowed.'
+    };
+  }
+
+  if (dateStr === todayStr) {
+    const currentHour = now.getHours();
+    if (currentHour >= 10) {
+      return {
+        isPast: false,
+        isToday: true,
+        canBookSameDay: false,
+        allowedSlots: [],
+        reason: 'Same-day bookings for today are closed (must be booked before 10:00 AM).'
+      };
+    } else {
+      return {
+        isPast: false,
+        isToday: true,
+        canBookSameDay: true,
+        allowedSlots: ['afternoon'],
+        reason: 'For same-day bookings placed before 10:00 AM, only the Afternoon slot (14:00 - 18:00 / 2:00 PM - 6:00 PM) is available.'
+      };
+    }
+  }
+
+  return {
+    isPast: false,
+    isToday: false,
+    canBookSameDay: true,
+    allowedSlots: ['morning', 'afternoon', 'fullday', 'evening']
+  };
+}
+
 export interface DayHallAvailability {
   date: string;
   hallId: HallId;
-  morning: { available: boolean; booking?: BookingRequest };
-  afternoon: { available: boolean; booking?: BookingRequest };
-  evening: { available: boolean; booking?: BookingRequest };
-  fullday: { available: boolean; booking?: BookingRequest };
+  morning: { available: boolean; booking?: BookingRequest; reason?: string };
+  afternoon: { available: boolean; booking?: BookingRequest; reason?: string };
+  evening: { available: boolean; booking?: BookingRequest; reason?: string };
+  fullday: { available: boolean; booking?: BookingRequest; reason?: string };
   hasConfirmedBooking: boolean;
   hasPendingBooking: boolean;
   conflictingBookings: BookingRequest[];
@@ -190,6 +252,7 @@ export function getHallSlotAvailability(
   allBookings: BookingRequest[]
 ): DayHallAvailability {
   const bookingsForDay = [...allBookings];
+  const restriction = getSameDayRestriction(dateStr);
 
   // Automatically inject Wednesday default reservation for both halls
   if (isWednesdayDate(dateStr)) {
@@ -204,6 +267,13 @@ export function getHallSlotAvailability(
   const pending = dateBookings.filter(b => b.status === 'pending');
 
   const checkSlot = (slot: TimeSlot) => {
+    if (restriction.isPast || !restriction.allowedSlots.includes(slot)) {
+      return {
+        available: false,
+        booking: undefined,
+        reason: restriction.reason
+      };
+    }
     const candidate = { hallId, eventDate: dateStr, timeSlot: slot };
     const matchingConfirmed = confirmed.find(b => doBookingsOverlap(candidate, b));
     const matchingPending = pending.find(b => doBookingsOverlap(candidate, b));

@@ -12,10 +12,16 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   bookings,
   onSelectDateToBook
 }) => {
-  const [currentDate, setCurrentDate] = useState<Date>(new Date(2026, 7, 1)); // August 2026
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+
+  const now = new Date();
+  const yearToday = now.getFullYear();
+  const monthToday = String(now.getMonth() + 1).padStart(2, '0');
+  const dayToday = String(now.getDate()).padStart(2, '0');
+  const todayStr = `${yearToday}-${monthToday}-${dayToday}`;
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -123,6 +129,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           const monthStr = String(month + 1).padStart(2, '0');
           const dayStr = String(dayNum).padStart(2, '0');
           const dateString = `${year}-${monthStr}-${dayStr}`;
+          const isPast = dateString < todayStr;
 
           const isWed = isWednesdayDate(dateString);
           const dateBookings = getBookingsForDate(dateString);
@@ -132,17 +139,29 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           return (
             <div
               key={dateString}
-              onClick={() => onSelectDateToBook(dateString)}
-              className={`group cursor-pointer h-24 sm:h-28 rounded-xl border hover:border-amber-500 hover:bg-amber-50/40 p-2 flex flex-col justify-between transition-colors duration-150 relative overflow-hidden ${
-                isWed ? 'bg-sky-50/50 border-sky-200' : 'bg-stone-50 border-stone-200'
+              onClick={() => {
+                if (isPast) return;
+                onSelectDateToBook(dateString);
+              }}
+              title={isPast ? 'Past date - booking unavailable' : `Click to book on ${dateString}`}
+              className={`group h-24 sm:h-28 rounded-xl border p-2 flex flex-col justify-between transition-colors duration-150 relative overflow-hidden ${
+                isPast
+                  ? 'bg-stone-100 border-stone-200 opacity-40 cursor-not-allowed pointer-events-none select-none'
+                  : `cursor-pointer hover:border-amber-500 hover:bg-amber-50/40 ${
+                      isWed ? 'bg-sky-50/50 border-sky-200' : 'bg-stone-50 border-stone-200'
+                    }`
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="font-mono text-sm font-bold text-stone-800 group-hover:text-amber-700">
+                <span className={`font-mono text-sm font-bold ${isPast ? 'text-stone-400' : 'text-stone-800 group-hover:text-amber-700'}`}>
                   {dayNum}
                 </span>
 
-                {isWed ? (
+                {isPast ? (
+                  <span className="text-[8px] bg-stone-200 text-stone-500 font-bold px-1 rounded">
+                    Past
+                  </span>
+                ) : isWed ? (
                   <span className="text-[9px] bg-sky-100 text-sky-800 font-bold px-1 rounded border border-sky-200">
                     Wed 9am-1pm
                   </span>

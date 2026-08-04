@@ -5,7 +5,6 @@ import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc } from 'firebase/firestore';
-import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { HALLS_DATA, ADDON_OPTIONS } from './src/data/hallsData.js';
 
 // Load Firebase Config
@@ -24,15 +23,6 @@ const firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : get
 const db = firebaseConfig.firestoreDatabaseId 
   ? getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId) 
   : getFirestore(firebaseApp);
-
-const storageBucket = firebaseConfig.storageBucket || 'persuasive-vector-d7krv.firebasestorage.app';
-let storage: ReturnType<typeof getStorage> | null = null;
-try {
-  storage = getStorage(firebaseApp, `gs://${storageBucket}`);
-  console.log(`[Firebase Storage] Initialized storage bucket: gs://${storageBucket}`);
-} catch (e) {
-  console.error('[Firebase Storage] Storage init notice:', e);
-}
 
 interface BookingRecord {
   id: string;
@@ -143,22 +133,7 @@ async function uploadImageToStorage(dataUrl: string, hallId: string, imageType: 
     return dataUrl;
   }
 
-  // 1. Primary: Upload to Firebase Storage
-  if (storage) {
-    try {
-      const ext = dataUrl.startsWith('data:image/png') ? 'png' : 'jpg';
-      const filename = `hall_images/${hallId}_${imageType}_${Date.now()}.${ext}`;
-      const storageRef = ref(storage, filename);
-      await uploadString(storageRef, dataUrl, 'data_url');
-      const downloadUrl = await getDownloadURL(storageRef);
-      console.log(`[Firebase Storage] Uploaded ${imageType} for ${hallId} -> ${downloadUrl}`);
-      return downloadUrl;
-    } catch (err) {
-      console.error(`[Firebase Storage] Upload attempt fallback:`, err);
-    }
-  }
-
-  // 2. Fallback: Save file locally in public/uploads/
+  // Save file locally in public/uploads/ and dist/public/uploads/
   try {
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
     if (!fs.existsSync(uploadsDir)) {
@@ -170,12 +145,22 @@ async function uploadImageToStorage(dataUrl: string, hallId: string, imageType: 
       const filename = `${hallId}_${imageType}_${Date.now()}.${ext}`;
       const filePath = path.join(uploadsDir, filename);
       fs.writeFileSync(filePath, Buffer.from(matches[2], 'base64'));
+
+      // Also sync to dist/public/uploads if dist exists
+      const distUploadsDir = path.join(process.cwd(), 'dist', 'public', 'uploads');
+      if (fs.existsSync(path.join(process.cwd(), 'dist'))) {
+        if (!fs.existsSync(distUploadsDir)) {
+          fs.mkdirSync(distUploadsDir, { recursive: true });
+        }
+        fs.writeFileSync(path.join(distUploadsDir, filename), Buffer.from(matches[2], 'base64'));
+      }
+
       const localUrl = `/uploads/${filename}`;
-      console.log(`[Local Upload] Saved image file -> ${localUrl}`);
+      console.log(`[Image Upload] Saved image file -> ${localUrl}`);
       return localUrl;
     }
   } catch (fsErr) {
-    console.error('[Local Upload] Failed to write local image file:', fsErr);
+    console.error('[Image Upload] Local save fallback to dataUrl:', fsErr);
   }
 
   return dataUrl;
